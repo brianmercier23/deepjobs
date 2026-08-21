@@ -58,7 +58,7 @@ ghosts. The hash deliberately does not include the description.
 ## Reproducing
 
 ```bash
-npm test                          # 135 tests, no API key, no network
+npm test                          # 165 tests, no API key, no network
 node scripts/record-fixtures.js   # refresh the recorded board responses
 ```
 
@@ -315,6 +315,63 @@ The minimum cacheable prefix is 4,096 tokens. The breakpoint stays because it
 costs nothing and pays off for a user who writes a long rubric, but the run
 summary reports the same figure with and without it and the README does not
 claim a saving.
+
+## End to end, cold
+
+Run against the shipped example config, from `init` to a scored report, with no
+hand-editing of anything:
+
+```
+$ node bin/deepjobs.js init
+wrote    config/rubric.md, config/companies.yaml, config/gates.yaml
+
+$ node bin/deepjobs.js run --limit 80
+crawling 10 boards
+  greenhouse/stripe: 570
+  --limit reached, 9 boards not crawled
+scoring 8 postings
+
+570 crawled  ->  566 new  ->  80 taken  ->  5 ai-forward  ->  8 gated  ->  8 scored
+8 scored, 0 failed, 14,657 in / 915 out, ~$0.019
+
+1 posting scored 60 or better:
+   62  Stripe - AutoFile Specialist, Tax
+```
+
+7.5 seconds and about two cents, on a rubric written for a fictional person.
+The funnel line is the whole product: every number in it is the input to the
+next stage, so where a run spent itself is readable at a glance.
+
+**`--limit` stops the crawl, it does not trim afterwards.** Written the obvious
+way, `--limit 20` on the example config still fetched all ten boards -- roughly
+nine thousand postings, minutes of wall clock -- before throwing away all but
+twenty. The check now runs between boards, counting *new* postings rather than
+all of them, because on the tenth run of a day the first board is entirely
+postings already seen and a limit counting those would stop having found
+nothing.
+
+`discover`, live:
+
+```
+$ node bin/deepjobs.js discover linear
+  miss  greenhouse       linear      404
+  miss  lever            linear      404
+  HIT   ashby            linear       32
+  HIT   workable         linear        0
+  miss  smartrecruiters  linear      empty, and this platform returns empty for any slug
+
+$ node bin/deepjobs.js discover --url https://www.jll.com/en-us/careers
+  HIT   workday          jll/jllcareers
+  - { platform: workday, tenant: jll, host: wd1, site: jllcareers }
+```
+
+Three things in that output are load-bearing. SmartRecruiters is reported as a
+miss rather than a zero-posting hit, because its empty response is the same for
+a real slug and an invented one. Workable answers for `linear` with a real board
+holding zero jobs -- a different company of the same name, which is exactly why
+every scraped slug is fetched before it is reported. And the Workday board is
+resolved from a careers-page redirect, since none of its three parts is
+guessable and a wrong site path returns 422 even when the tenant is real.
 
 ## Still to verify
 

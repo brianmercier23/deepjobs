@@ -56,12 +56,22 @@ export async function fetchBoard(platform, target, name = null, opts = {}) {
  * One board's failure never aborts a run. Failures come back as data so the
  * caller can report them, because a crawl that stops at the eleventh of
  * forty-seven boards and says nothing is worse than one that finishes and
- * tells you which two were down.
+ * tells you which two were down. Boards skipped by `shouldStop` come back the
+ * same way, for the same reason.
  */
 export async function fetchAll(targets, opts = {}) {
   const postings = [];
   const failures = [];
+  const stopped = [];
   for (const target of targets) {
+    // `--limit 20` should mean twenty postings, not twenty postings after
+    // crawling nine thousand. The check is between boards rather than inside
+    // one because a board answers with its whole list in a single request;
+    // there is no partial fetch to stop halfway through.
+    if (opts.shouldStop?.(postings)) {
+      stopped.push(boardLabel(target));
+      continue;
+    }
     const { platform, name = null } = target;
     const slug = boardLabel(target);
     try {
@@ -73,5 +83,5 @@ export async function fetchAll(targets, opts = {}) {
       opts.onBoard?.({ platform, slug, count: 0, error: String(err.message ?? err) });
     }
   }
-  return { postings, failures };
+  return { postings, failures, stopped };
 }

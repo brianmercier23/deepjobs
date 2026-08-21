@@ -21,9 +21,39 @@ other. Details and method in [docs/verification.md](docs/verification.md).
 
 ## Status
 
-Under construction. The scaffold, the tracked signal set and the public/private
-split are in place; collectors, gate, tagging, scorer and CLI are landing in
-sequence. Nothing below is claimed as working until its section says so.
+Under construction. The engine runs end to end -- collect, dedupe, tag, gate,
+score, report -- and every claim below is measured in
+[docs/verification.md](docs/verification.md). Still to come: the `setup`
+interview skill and the published package.
+
+## Getting started
+
+```bash
+npm install
+node bin/deepjobs.js init                  # copies examples/ into config/
+node bin/deepjobs.js run --no-score        # crawl, tag and gate, for nothing
+```
+
+`init` ships a rubric written for a fictional person, so a run produces
+believable output before you have written anything. Then make it yours:
+
+```bash
+node bin/deepjobs.js discover linear                       # find a board slug
+node bin/deepjobs.js discover --url https://x.com/careers  # or read a careers page
+```
+
+Paste what it prints into `config/companies.yaml`, put your own rubric in
+`config/rubric.md`, and add `ANTHROPIC_API_KEY` to a `.env` file. Then:
+
+```bash
+node bin/deepjobs.js run --limit 40        # scoring costs about $0.004 a posting
+node bin/deepjobs.js report --min 60
+node bin/deepjobs.js stats
+```
+
+`--limit` stops the crawl once it has that many *new* postings rather than
+trimming afterwards, so a first run is seconds rather than minutes. `--dry-run`
+does everything and writes nothing. `deepjobs --help` lists the rest.
 
 ## How it works
 
