@@ -58,7 +58,7 @@ ghosts. The hash deliberately does not include the description.
 ## Reproducing
 
 ```bash
-npm test                          # 67 tests, no API key, no network
+npm test                          # 78 tests, no API key, no network
 node scripts/record-fixtures.js   # refresh the recorded board responses
 ```
 

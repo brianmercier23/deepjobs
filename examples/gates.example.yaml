@@ -1,41 +1,79 @@
-# The free stage. Everything here runs on regex over the description body and
+# The free stage. Everything here runs on regex over text already in hand and
 # costs nothing, which is the point: it is what stops you paying an LLM to read
-# 2,000 postings that were never viable.
+# two thousand postings that were never viable.
 #
 # `deepjobs init` copies this to config/gates.yaml, which is gitignored.
+#
+# The bias is deliberately toward letting things through. A gate that silently
+# rejects a good role costs more than one that passes a bad role: the bad one
+# dies for a fraction of a cent at the next stage, while the good one is never
+# seen again. Most settings below produce a flag rather than a rejection.
 
 location:
-  # Used in reject messages, so it reads like a sentence.
+  # Used in reject reasons, so write it to read as a sentence:
+  # "onsite outside the Denver metro: Austin, TX".
   home_metro_label: "the Denver metro"
-  # Onsite roles are kept only in these metros. Remote is judged separately.
+
+  # Lets a metro entry with no state still match when the posting names the
+  # state, e.g. "Boulder" matching "Boulder, Colorado".
+  home_state: colorado
+  home_state_code: co
+
+  # Onsite roles survive only in these. Remote is judged separately.
   onsite_metros_allowed:
     - denver
     - boulder
     - aurora
     - lakewood
-  # A country list that misses an entry degrades to a LOCATION_UNKNOWN flag,
-  # never to a wrong reject. Add to it; do not rely on it being complete.
-  allow_remote: true
+
+  # A posting whose location says nothing useful ("Multiple locations",
+  # "Nationwide") passes with a LOCATION_UNKNOWN flag rather than being
+  # guessed at. Set false to reject instead.
+  pass_ambiguous_locations: true
+
+  reject_if_relocation_required: true
+
+  # Rejects only when there is no US signal AND the location names a country
+  # on the known-foreign list. An incomplete list therefore degrades to a flag,
+  # never to a wrong rejection.
+  reject_non_us: true
 
 compensation:
-  # Below this, reject. A posting with no stated salary is never rejected on
-  # comp; it is flagged and moves on.
+  # Flags below this, does not reject. A posting stating no salary is never
+  # rejected on comp; most postings state none at all.
   soft_floor: 95000
-  currency: USD
 
-titles:
+  # A hard floor that does reject. Leave null unless you mean it.
+  min_annual: null
+
+  reject_commission_only: true
+  reject_unpaid: true
+
+employment_type:
+  # flag | reject
+  contract_mode: flag
+
+hard_rejects:
   # Word-boundary matched, so "intern" cannot kill "Internal Audit Manager".
-  kill:
+  titles_containing:
     - intern
     - internship
-    - unpaid
     - volunteer
-    - commission only
-    - part-time
-  # Seniority bands that are noise for this persona.
-  kill_seniority:
-    - vp
+    - apprentice
     - vice president
     - chief
-    - c-level
-    - director of engineering
+
+  # Same matching, applied to the title and body together. Empty by default:
+  # this list is the easiest way to make the gate quietly too tight.
+  description_containing: []
+
+staffing_agencies:
+  # flag | reject. Flagged by default, because agencies do carry real roles.
+  mode: flag
+  names:
+    - Robert Half
+    - Aerotek
+    - TEKsystems
+    - Insight Global
+    - Randstad
+    - Kforce
