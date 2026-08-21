@@ -21,6 +21,7 @@ import { BASE as LEVER } from '../src/collectors/lever.js';
 import { BASE as ASHBY } from '../src/collectors/ashby.js';
 import { BASE as WORKABLE } from '../src/collectors/workable.js';
 import { BASE as SR } from '../src/collectors/smartrecruiters.js';
+import { apiBase as workdayBase, PAGE as WD_PAGE } from '../src/collectors/workday.js';
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'test', 'fixtures');
 const KEEP = 3;
@@ -38,6 +39,7 @@ const TARGETS = {
   ashby: 'linear',
   workable: 'persado',
   smartrecruiters: 'Ubisoft2',
+  workday: { tenant: 'jll', host: 'wd1', site: 'jllcareers' },
 };
 
 process.stdout.write('recording fixtures\n');
@@ -60,6 +62,16 @@ const rows = (sr.content ?? []).slice(0, KEEP);
 save('smartrecruiters', { ...sr, content: rows, totalFound: rows.length });
 // The list endpoint carries no body, so the detail shape needs its own fixture.
 save('smartrecruiters-detail', await fetchJson(`${srBase}/${rows[0].id}`));
+
+// Workday: a POST for the list, and a separate call for each description.
+const wdBase = workdayBase(TARGETS.workday);
+const wdList = await fetchJson(`${wdBase}/jobs`, {
+  body: { appliedFacets: {}, limit: WD_PAGE, offset: 0, searchText: 'facilities manager' },
+});
+const wdRows = (wdList.jobPostings ?? []).slice(0, KEEP);
+// Drop the facet tree: it is 90KB of filter options and nothing maps it.
+save('workday', { total: wdList.total, jobPostings: wdRows });
+save('workday-detail', await fetchJson(`${wdBase}${wdRows[0].externalPath}`));
 
 // The zero that means "real board, nobody hiring today", as opposed to the
 // SmartRecruiters zero that means nothing at all.

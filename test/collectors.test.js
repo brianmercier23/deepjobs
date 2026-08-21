@@ -233,8 +233,11 @@ test('every collector survives an empty or malformed response', () => {
   assert.deepEqual(mapSmartRecruiters(null, new Map(), 'acme'), []);
 });
 
-test('the platform registry is the five that are wired up', () => {
-  assert.deepEqual(PLATFORMS.sort(), ['ashby', 'greenhouse', 'lever', 'smartrecruiters', 'workable']);
+test('the platform registry is the six that are wired up', () => {
+  assert.deepEqual(
+    [...PLATFORMS].sort(),
+    ['ashby', 'greenhouse', 'lever', 'smartrecruiters', 'workable', 'workday'],
+  );
 });
 
 test('isoDate handles every shape the boards send', () => {

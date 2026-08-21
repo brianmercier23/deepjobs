@@ -47,12 +47,21 @@ export async function fetchJson(url, { params = null, fetchImpl = globalThis.fet
   const retries = opts.retries ?? RETRIES;
   const timeout = opts.timeout ?? TIMEOUT_MS;
   const backoff = opts.backoff ?? BACKOFF_MS;
+  // Workday's search endpoint is a POST with a JSON body. The other five are
+  // plain GETs, so this stays optional rather than becoming the default shape.
+  const method = opts.body ? 'POST' : (opts.method ?? 'GET');
 
   let last = null;
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     try {
       const res = await fetchImpl(href, {
-        headers: { 'User-Agent': userAgent(opts.contact), Accept: 'application/json' },
+        method,
+        headers: {
+          'User-Agent': userAgent(opts.contact),
+          Accept: 'application/json',
+          ...(opts.body ? { 'Content-Type': 'application/json' } : {}),
+        },
+        body: opts.body ? JSON.stringify(opts.body) : undefined,
         signal: AbortSignal.timeout(timeout),
       });
       if (res.status === 404) {

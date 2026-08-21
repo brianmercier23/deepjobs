@@ -31,8 +31,8 @@ sequence. Nothing below is claimed as working until its section says so.
 collect -> dedupe -> tag -> gate -> score -> report
 ```
 
-- **collect** hits ATS JSON APIs directly: Greenhouse, Lever, Ashby, Workable,
-  SmartRecruiters, Workday. No search API in the middle, no dependency on what
+- **collect** hits ATS JSON APIs directly across six platforms: Greenhouse,
+  Lever, Ashby, Workable, SmartRecruiters and Workday. No search API in the middle, no dependency on what
   a search engine happened to index, no per-query billing.
 - **dedupe** hashes normalized company, title and location, so the same role
   posted to two boards counts once, and a re-run can never overwrite a verdict
@@ -85,8 +85,17 @@ Board APIs are not uniform and the differences are not documented anywhere.
   is wrong about one of them.
 - **Workday needs three separate parts** (tenant, `wd{N}` host, site path) and
   none can be guessed. A wrong site path returns 422 even when the tenant is
-  real. They are recoverable from a careers-page redirect, which is what
-  `deepjobs discover --url` does.
+  real. A careers page that redirects to the board gives all three away;
+  a careers page that is a marketing site with the job search another click in
+  gives away nothing, and `discover` returns null rather than guessing.
+- **Workday's page size is 20.** Not a preference: 50 and 100 both return 400.
+  Its `total` maxes out at 2000 whatever the real figure is, so it is a
+  stopping hint rather than a count. It is also the only platform that filters
+  server-side, via `searchText`, which is what makes a tenant with thousands of
+  roles usable at all.
+- **Workday's `postedOn` is a phrase, not a date** ("Posted Today", "Posted 30+
+  Days Ago"). The real date is on the detail call. Deriving one from the phrase
+  makes a stale posting look fresh.
 - **SmartRecruiters' list endpoint has no link a human can open.** Its only URL
   field points back at the API; `postingUrl` and `applyUrl` exist on the detail
   response only. Since descriptions are capped at 60 detail calls per company,

@@ -1,0 +1,35 @@
+{
+  "total": 975,
+  "jobPostings": [
+    {
+      "title": "Expression of Interest - Facilities Manager",
+      "externalPath": "/job/Canberra-ACT/Expression-of-Interest---Facilities-Manager_REQ529977",
+      "locationsText": "Canberra, ACT",
+      "postedOn": "Posted Today",
+      "remoteType": "On-site",
+      "bulletFields": [
+        "REQ529977"
+      ]
+    },
+    {
+      "title": "Assistant Facilities Manager",
+      "externalPath": "/job/Chicago-IL/Assistant-Facilities-Manager_REQ529767",
+      "locationsText": "Chicago, IL",
+      "postedOn": "Posted Today",
+      "remoteType": "On-site",
+      "bulletFields": [
+        "REQ529767"
+      ]
+    },
+    {
+      "title": "Capital Planning Sr Project Manager",
+      "externalPath": "/job/Thousand-Oaks-CA/Capital-Planning-Sr-Project-Manager_REQ529379-1",
+      "locationsText": "2 Locations",
+      "postedOn": "Posted Today",
+      "remoteType": "On-site",
+      "bulletFields": [
+        "REQ529379"
+      ]
+    }
+  ]
+}

@@ -65,9 +65,31 @@ node scripts/record-fixtures.js   # refresh the recorded board responses
 Collector parity needs a board list and the reference implementation, neither
 of which is in this repository.
 
+## Workday, live
+
+Measured 2026-08-20 against `jll.wd1` / `jllcareers`.
+
+| | value |
+|---|---|
+| list page size | 20 (50 and 100 both return HTTP 400) |
+| reported total | 2000, which is a display cap rather than a count |
+| `searchText` | filters server-side, the only platform that does |
+| postings fetched with `searchText: "facilities manager"` | 40 in 4.1s |
+| detail bodies | 8,090 characters, real ISO `startDate`, `timeType` |
+| postings without a detail call | still carry title, location, URL and remote type |
+
+Tenant resolution from a careers page:
+
+- `https://www.jll.com/en-us/careers` resolves to
+  `{tenant: jll, host: wd1, site: jllcareers}`.
+- `https://careers.fortive.com` resolves to **nothing**, and correctly so. It
+  is a 300KB WordPress marketing site that never names a board; the job search
+  is another click in. A guess here costs a 422 that reads as a dead board, so
+  discovery returns null and the user pastes the board URL instead.
+
 ## Still to verify
 
 - Gate parity, and the measured gain from body-based remote detection
 - Scorer diff against a known-good scored set
-- Workday tenant resolution against a live careers page
 - The ai-forward signal set reproducing its scoring split on a real corpus
+- Following one level of careers-page links, to resolve boards like Fortive's
