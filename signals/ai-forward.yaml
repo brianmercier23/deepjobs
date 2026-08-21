@@ -50,8 +50,12 @@ legacy:
   # strong predictor of a role that is administering software, not building.
   training:
     - addie
-    - articulate
-    - storyline
+    # Product names, not the bare word. "articulate" on its own matched the
+    # English verb 245 times in a 2,897-posting corpus ("articulate technical
+    # tradeoffs to engineers"), which is a requirement in half the job market.
+    - articulate storyline
+    - articulate 360
+    - storyline 360
     - cornerstone
     - scorm
     - lms administration

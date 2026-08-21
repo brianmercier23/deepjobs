@@ -118,6 +118,45 @@ Known gap, left for tuning against the corpus: phrasing that puts the office
 before the cadence, as in *"work in person at our office 4-5 days a week"*, is
 not matched yet.
 
+## The ai-forward signal set
+
+Run over the same 2,897 unique postings. Tagging is regex over text already in
+hand, so the cost is the whole point:
+
+| | value |
+|---|---|
+| postings tagged | 2,897 |
+| elapsed | 647ms |
+| carrying a forward term | 994 (34.3%) |
+| carrying a legacy term | 40 (1.4%) |
+| carrying both | 7 |
+
+34.3% is high because of what this corpus is: 47 hand-picked technology
+employers in 2026, which is exactly the population that would name these tools.
+It is not evidence that the set is loose. Precision was checked by pulling the
+matched sentence for every high-frequency term, and the forward half held up:
+
+- `agentic` (557) — *"own the quality infrastructure for our agentic product direction"*
+- `mcp` (245) — *"Comfort with CLI-based tooling, MCP integrations, and AI agent frameworks"*
+- `claude` (237) — *"use Claude Code, Cursor, and others as a core part of your workflow"*
+- `rag` (115) — *"tool-calling agents, planning/execution loops, and RAG"*
+
+The legacy half did not. `articulate` fired 245 times and was the English verb
+essentially every time: *"you can articulate technical tradeoffs to engineers"*,
+which is a communication requirement in half the job market rather than a
+signal about an e-learning tool. Replacing the bare word with the product names
+(`articulate storyline`, `articulate 360`) took legacy hits from 281 to 40.
+
+Six terms never fired at all: `openai api`, `lms administration`, `nuvolo`,
+`siebel`, `lotus notes`, `mail merge`. They are kept rather than pruned. This
+corpus is technology employers; those terms belong to the facilities, CRE and
+corporate-training postings the set exists to tell apart, and none of those
+employers are in this board list yet.
+
+**Not yet verified:** the claim that forward-tagged postings score 65-81 while
+legacy-tagged score 25-40. That needs the scorer, which does not exist yet.
+Prevalence and precision are measurable today; the correlation is not.
+
 ## Workday, live
 
 Measured 2026-08-20 against `jll.wd1` / `jllcareers`.
