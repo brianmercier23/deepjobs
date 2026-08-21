@@ -58,7 +58,7 @@ ghosts. The hash deliberately does not include the description.
 ## Reproducing
 
 ```bash
-npm test                          # 78 tests, no API key, no network
+npm test                          # 135 tests, no API key, no network
 node scripts/record-fixtures.js   # refresh the recorded board responses
 ```
 
@@ -179,9 +179,100 @@ Tenant resolution from a careers page:
   is another click in. A guess here costs a 422 that reads as a dead board, so
   discovery returns null and the user pastes the board URL instead.
 
+## Scorer parity
+
+The 30 scored rows in the reference implementation's database are the only
+independently-produced verdicts available to check against. 28 of them were
+still live in the shared crawl dump, so they were rescored here against the
+same rubric and the same model, and the totals compared.
+
+Two changes matter before reading the numbers. The output contract is appended
+by this implementation rather than written into the rubric, so any rubric
+produces parseable JSON; and the six per-dimension sub-scores are new here.
+
+### Sampling temperature is pinned, and that is most of the story
+
+The reference implementation left sampling at the default. Rescoring the same
+28 postings twice measures what that costs:
+
+| | identical | mean move | worst move |
+|---|---|---|---|
+| default temperature | — | 5.3 points | 30 points |
+| **temperature 0** | **25 of 28** | **0.8 points** | **10 points** |
+
+A score that moves 30 points when nothing about the posting changed is not a
+score. Everything below is measured at temperature 0.
+
+### Against the reference implementation
+
+| | value |
+|---|---|
+| baseline postings rescored | 28 of 30 (2 no longer posted) |
+| failures | 0 |
+| median absolute difference | **0** |
+| mean absolute difference | 4.0 points |
+| within 5 points | 21 of 28 |
+| within 10 points | 26 of 28 |
+| **moved more than 10** | **2** |
+| run time, 4 concurrent | 17.4s |
+| cost | $0.109, about $0.004 a posting |
+
+Both outliers were read rather than waved off. In both, the two
+implementations wrote **the same reasoning** and disagreed only on the number:
+
+> reference: "Sales Engineer role with deep CRE domain fit and remote
+> flexibility, but core job is customer-facing sales support and deal
+> advancement, not operations or systems building." — scored 28
+>
+> this implementation: "Remote CRE software role where his domain expertise is
+> a genuine asset, but Sales Engineer is customer-facing sales support, not
+> process ownership or automation building." — scored 72
+
+The rubric used for this comparison has an "automatic low scores" section that
+caps sales roles. Both runs identified the disqualifier in prose; only one
+applied the cap to the total. That is the rubric's rule firing unreliably, not
+a difference in the port — and it is exactly what the sub-scores were added to
+make visible, since the six dimensions summed to 72 and the cap should have
+pulled the total to 28.
+
+### The sub-scores explain the ceiling, not the score
+
+The obvious assumption is that the six dimensions add up to the total. They do
+not, and the gap is the useful part:
+
+| | value |
+|---|---|
+| postings where the parts do not sum to the total | 22 of 28 |
+| mean gap (subtotal above total) | 32.7 points |
+| largest gap | 50 points |
+| postings where the **total exceeded its own parts** | **0** |
+
+The dimensions read the role; the total is the rubric's verdict on it, which a
+cap or an automatic-low-score rule can push well below the sum. So the parser's
+consistency check is one-sided: every override a rubric can state pushes the
+number *down*, and nothing justifies a total the dimensions do not support.
+
+A first attempt flagged the disagreement in both directions. It fired on 24 of
+28 postings and meant nothing.
+
+### Prompt caching is a no-op at this size
+
+The rubric is byte-identical on every call in a run, so it carries a cache
+breakpoint. On this model that breakpoint does nothing for a normal rubric,
+measured directly:
+
+| system prompt | cached |
+|---|---|
+| 2,081 tokens (the example rubric plus the output contract) | no |
+| 3,689 tokens | no |
+| 4,910 tokens | yes |
+
+The minimum cacheable prefix is 4,096 tokens. The breakpoint stays because it
+costs nothing and pays off for a user who writes a long rubric, but the run
+summary reports the same figure with and without it and the README does not
+claim a saving.
+
 ## Still to verify
 
-- The measured gain from body-based remote detection
-- Scorer diff against a known-good scored set
 - The ai-forward signal set reproducing its scoring split on a real corpus
 - Following one level of careers-page links, to resolve boards like Fortive's

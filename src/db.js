@@ -402,6 +402,8 @@ export function report(db, { minScore = 0, aiForwardOnly = false, unwrittenOnly 
   if (unwrittenOnly) where.push('p.written_at IS NULL');
   const rows = db.prepare(`
     SELECT p.*, s.overall, s.rationale, s.flags AS score_flags,
+           s.location_viability, s.capability_overlap, s.domain_leverage,
+           s.build_latitude, s.seniority_fit, s.signal_quality,
            g.result AS gate_result, a.my_verdict
     FROM posting p
     JOIN score s ON s.hash = p.hash
@@ -414,6 +416,17 @@ export function report(db, { minScore = 0, aiForwardOnly = false, unwrittenOnly 
     ...rowToPosting(row),
     overall: row.overall,
     band: scoreBand(row.overall),
+    // The six dimensions come back with the row. A total on its own says a
+    // posting is a 42; the parts say which of the six is what cost it, which
+    // is the only version of the number anyone can act on.
+    dimensions: {
+      locationViability: row.location_viability,
+      capabilityOverlap: row.capability_overlap,
+      domainLeverage: row.domain_leverage,
+      buildLatitude: row.build_latitude,
+      seniorityFit: row.seniority_fit,
+      signalQuality: row.signal_quality,
+    },
     rationale: row.rationale,
     scoreFlags: fromJson(row.score_flags),
     gateResult: row.gate_result,
