@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 
 import { main, parseArgs, USAGE } from '../src/cli.js';
 import {
-  CONFIG_FILES, ConfigError, initConfig, loadCompanies, loadEnv, loadGates,
+  CONFIG_FILES, ConfigError, initConfig, installSkill, loadCompanies, loadEnv, loadGates,
 } from '../src/config.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -57,11 +57,14 @@ test('an unknown command exits 2 and says so on stderr', async () => {
   assert.match(io.stderr(), /unknown command "frobnicate"/);
 });
 
-test('setup explains that it is a skill rather than pretending to be a command', async () => {
-  // It is listed in the usage text, so running it has to lead somewhere.
+test('setup installs the skill and explains what to do with it', async () => {
+  // It is listed in the usage text, so running it has to lead somewhere. The
+  // file it writes is a gitignored generated copy, which is what this command
+  // exists to write, so running it here costs nothing.
   const io = capture();
-  assert.equal(await main(['setup'], io), 2);
-  assert.match(io.stderr(), /Claude Code skill/);
+  assert.equal(await main(['setup'], io), 0);
+  assert.match(io.stdout(), /skills[\\/]deepjobs-setup[\\/]SKILL\.md/);
+  assert.match(io.stdout(), /Claude Code/);
 });
 
 test('a bad option value is an error message, not a stack trace', async () => {
@@ -310,4 +313,40 @@ test('scoring is refused up front when there is no key, before the crawl', async
   } finally {
     if (key !== undefined) process.env.ANTHROPIC_API_KEY = key;
   }
+});
+
+// --------------------------------------------------------------------------
+// setup
+
+test('setup puts the skill where Claude Code will look, and says so twice honestly', () => {
+  const dir = temp();
+  const target = join(dir, '.claude', 'skills', 'deepjobs-setup', 'SKILL.md');
+
+  const first = installSkill({ target });
+  assert.equal(first.installed, true);
+  assert.ok(readFileSync(target, 'utf8').includes('deepjobs-setup'));
+
+  // Running it again must not claim to have done something it did not do.
+  assert.equal(installSkill({ target }).installed, false);
+});
+
+test('the shipped skill states the constraints the code depends on', () => {
+  const skill = readFileSync(join(ROOT, 'skills/setup/SKILL.md'), 'utf8');
+
+  // The six dimensions are database columns. A skill that invents a seventh,
+  // or reweights them, writes a rubric whose sub-scores land nowhere.
+  for (const [name, max] of [
+    ['Location viability', 25], ['Capability overlap', 25], ['Domain leverage', 15],
+    ['Build latitude', 15], ['Seniority fit', 10], ['Signal quality', 10],
+  ]) {
+    assert.match(skill, new RegExp(`${name}[^|]*\|\s*${max}`), name);
+  }
+
+  // src/score.js appends the output contract. A second copy in the rubric
+  // fights it, so the skill has to be told not to write one.
+  assert.match(skill, /Do not put an output format/);
+  // A guessed slug does not error, it returns nothing quietly.
+  assert.match(skill, /Never write a board slug you have not verified/);
+  // The whole privacy design is that these three files are not tracked.
+  assert.match(skill, /gitignored/);
 });

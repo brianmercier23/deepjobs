@@ -58,7 +58,7 @@ ghosts. The hash deliberately does not include the description.
 ## Reproducing
 
 ```bash
-npm test                          # 165 tests, no API key, no network
+npm test                          # 167 tests, no API key, no network
 node scripts/record-fixtures.js   # refresh the recorded board responses
 ```
 
@@ -372,6 +372,36 @@ holding zero jobs -- a different company of the same name, which is exactly why
 every scraped slug is fetched before it is reported. And the Workday board is
 resolved from a careers-page redirect, since none of its three parts is
 guessable and a wrong site path returns 422 even when the tenant is real.
+
+## The setup skill
+
+`deepjobs setup` copies `skills/setup/SKILL.md` into `.claude/skills/`, because
+a package is not somewhere Claude Code looks for a skill. Running it twice says
+"already installed" rather than implying it did something.
+
+The skill's output contract was checked by writing a rubric to its spec for a
+different person entirely -- a litigation paralegal in Pittsburgh who moved into
+document-review tooling, chosen to share nothing with the shipped example -- and
+scoring real postings against it:
+
+| | result |
+|---|---|
+| rubric loads | yes, 2,676 chars |
+| contains a conflicting output section | no |
+| postings returning all six sub-scores | 6 of 6 |
+| automatic-low-score caps firing | yes: subtotals of 52 and 55 capped to totals of 8 and 15 |
+
+That last row is the check that matters. The skill tells the interviewer to
+write caps as an "automatic low scores" section, and the caps have to actually
+reach the total while the six dimensions keep reading the role. They do.
+
+Three constraints in the skill are enforced by a test rather than by hope,
+because breaking any of them produces a rubric that scores without complaining:
+
+- the six dimensions keep their names and maximums, since they are database
+  columns
+- the rubric contains no output format, because `src/score.js` appends one
+- no board slug is written that `discover` has not verified
 
 ## Still to verify
 

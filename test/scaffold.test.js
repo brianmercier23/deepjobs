@@ -46,6 +46,8 @@ test('personal config is ignored', () => {
     'data/seen.db',
     '.env',
     '.env.local',
+    // A generated copy of the skill, put here by `deepjobs setup`.
+    '.claude/skills/deepjobs-setup/SKILL.md',
   ]) {
     assert.ok(isIgnored(p), `${p} must be gitignored`);
   }
@@ -54,6 +56,7 @@ test('personal config is ignored', () => {
 test('the shipped inputs are tracked', () => {
   for (const p of [
     'signals/ai-forward.yaml',
+    'skills/setup/SKILL.md',
     'examples/rubric.example.md',
     'examples/companies.example.yaml',
     'examples/gates.example.yaml',

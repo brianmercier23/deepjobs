@@ -35,7 +35,17 @@ node bin/deepjobs.js run --no-score        # crawl, tag and gate, for nothing
 ```
 
 `init` ships a rubric written for a fictional person, so a run produces
-believable output before you have written anything. Then make it yours:
+believable output before you have written anything. Then make it yours. If you
+have Claude Code:
+
+```bash
+node bin/deepjobs.js setup     # installs an interview skill into .claude/skills/
+```
+
+Ask Claude Code to set up deepjobs. It reads your resume if you offer one, asks
+six questions, and writes all three config files from the answers -- verifying
+every board slug with `discover` first, because a guessed slug does not error,
+it just returns nothing. Otherwise do it by hand:
 
 ```bash
 node bin/deepjobs.js discover linear                       # find a board slug

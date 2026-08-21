@@ -17,3 +17,7 @@ npm-debug.log*
 *.tsbuildinfo
 .DS_Store
 Thumbs.db
+
+# The setup skill is copied here by `deepjobs setup`. The source of truth is
+# skills/setup/SKILL.md; this is a generated copy.
+.claude/

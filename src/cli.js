@@ -15,7 +15,8 @@ import { loadSignals, tagAll } from './tag.js';
 import { loadRubric, createClient, scoreAll, ScoreError } from './score.js';
 import { discover, companiesYamlLine } from './discover.js';
 import {
-  ConfigError, PACKAGE_ROOT, configPath, initConfig, loadCompanies, loadEnv, loadGates,
+  ConfigError, PACKAGE_ROOT, configPath, initConfig, installSkill, loadCompanies, loadEnv,
+  loadGates,
 } from './config.js';
 import {
   openDb, recordGate, recordPostings, recordScore, report, splitNew, stats,
@@ -28,7 +29,7 @@ export const USAGE = `deepjobs ${VERSION}
 
 Usage
   deepjobs init                       write config/ from examples/
-  deepjobs setup                      interview-driven config (Claude Code skill)
+  deepjobs setup                      install the interview skill for Claude Code
   deepjobs run [options]              collect, dedupe, tag, gate, score
   deepjobs discover <name|--url>      find a company's board slug
   deepjobs report [options]           list what scored well
@@ -106,6 +107,29 @@ function cmdInit(opts, io) {
     io.out('\nThe example rubric is written for a fictional person, so a run works cold.\n');
     io.out('Replace it with your own, or run `deepjobs setup` to be interviewed into one.\n');
   }
+  return 0;
+}
+
+// --------------------------------------------------------------------------
+// setup
+
+/**
+ * `setup` is an interview, and an interview needs someone to run it.
+ *
+ * The skill ships inside the package and a package is not somewhere Claude
+ * Code looks, so this copies it into `.claude/skills/` in the working
+ * directory rather than printing a path and hoping.
+ */
+function cmdSetup(io) {
+  const { target, installed } = installSkill();
+  io.out(`${installed ? 'installed' : 'already installed'}  ${target}\n\n`);
+  io.out('Open this directory in Claude Code and ask it to set up deepjobs.\n');
+  io.out('It reads your resume if you offer one, asks six questions, and writes\n');
+  io.out('config/rubric.md, config/gates.yaml and config/companies.yaml from the\n');
+  io.out('answers - verifying every board slug with `deepjobs discover` first,\n');
+  io.out('because a guessed slug does not error, it just returns nothing.\n\n');
+  io.out('Without Claude Code: run `deepjobs init` and edit the three files by hand.\n');
+  io.out(`The interview is readable prose either way: ${target}\n`);
   return 0;
 }
 
@@ -361,12 +385,7 @@ export async function main(argv, io = {
       case 'discover': return await cmdDiscover(opts, positional, io, deps);
       case 'report': return cmdReport(opts, io);
       case 'stats': return cmdStats(opts, io);
-      case 'setup':
-        io.err('`deepjobs setup` is a Claude Code skill, not a command.\n\n');
-        io.err('Open this directory in Claude Code and ask it to run the deepjobs setup\n');
-        io.err('skill. It interviews you and writes config/ from your answers. Without\n');
-        io.err('Claude Code, run `deepjobs init` and edit the three files by hand.\n');
-        return 2;
+      case 'setup': return cmdSetup(io);
       default: return 2;
     }
   } catch (err) {

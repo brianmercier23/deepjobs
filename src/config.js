@@ -30,6 +30,27 @@ export function configPath(name, dir = 'config') {
   return join(dir, name);
 }
 
+export const SKILL_SOURCE = join(PACKAGE_ROOT, 'skills', 'setup', 'SKILL.md');
+export const SKILL_TARGET = join('.claude', 'skills', 'deepjobs-setup', 'SKILL.md');
+
+/**
+ * Put the setup skill where Claude Code will find it.
+ *
+ * The skill ships inside the package, and a package is not a place Claude Code
+ * looks. `.claude/skills/` in the working directory is, so `setup` copies it
+ * there rather than printing a path and hoping. Returns whether the copy was
+ * needed, so a second run can say "already there" instead of implying it just
+ * did something.
+ */
+export function installSkill({ target = SKILL_TARGET, source = SKILL_SOURCE } = {}) {
+  const already = existsSync(target) && readFileSync(target, 'utf8') === readFileSync(source, 'utf8');
+  if (!already) {
+    mkdirSync(dirname(target), { recursive: true });
+    copyFileSync(source, target);
+  }
+  return { target, installed: !already };
+}
+
 /**
  * Copy the examples into `config/`.
  *
