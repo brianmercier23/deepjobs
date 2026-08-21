@@ -38,6 +38,17 @@ location:
   # never to a wrong rejection.
   reject_non_us: true
 
+  # Read the body before believing a remote flag. Boards let an employer tick
+  # "remote" and then write a description requiring three days a week in San
+  # Francisco, and structured metadata is what every other job tool filters
+  # on, so those postings pass every filter. Costs nothing and flags them as
+  # REMOTE_CONTRADICTED.
+  check_remote_claim_against_body: true
+
+  # Turn the flag into a rejection. Off by default: a hybrid role inside your
+  # own metro is still a job you might want.
+  reject_contradicted_remote: false
+
 compensation:
   # Flags below this, does not reject. A posting stating no salary is never
   # rejected on comp; most postings state none at all.

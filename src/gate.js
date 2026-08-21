@@ -23,7 +23,49 @@ export const FLAGS = {
   NO_COMP: 'NO_COMP_DISCLOSED',
   STAFFING: 'STAFFING_AGENCY',
   THIN: 'THIN_DESCRIPTION',
+  // The posting says remote and then the body asks for days in an office.
+  REMOTE_CONTRADICTED: 'REMOTE_CONTRADICTED',
+  // The posting says remote and then the body restricts where you may live.
+  REMOTE_GEO_LIMITED: 'REMOTE_GEO_LIMITED',
 };
+
+/**
+ * A structured remote flag is a claim, not a fact.
+ *
+ * Boards let an employer tick "remote" and then write a body that requires
+ * three days a week in San Francisco. Structured metadata is what every job
+ * tool filters on, so those postings pass every filter and are only caught by
+ * someone reading the description, which is the expensive part.
+ *
+ * These patterns are deliberately about *requirements* rather than any mention
+ * of an office. "We have offices in Austin" is not an anchor-day requirement,
+ * and matching it would reject genuinely remote roles at the free stage, which
+ * is the one thing this gate must not do.
+ */
+const ONSITE_REQUIREMENT_RE = new RegExp([
+  String.raw`\b\d+\s*(?:\+\s*)?days?\s*(?:per|a|each)\s*week\s*(?:in|on|at|from)\b`,
+  String.raw`\bin[- ]office\s+\d+\s*(?:\+\s*)?days?\b`,
+  String.raw`\b(?:required|expected|need)\w*\s+to\s+(?:be|work)\s+(?:on[- ]?site|in[- ]?office|in the office)\b`,
+  String.raw`\bmust\s+(?:be able to\s+)?(?:work|be)\s+(?:on[- ]?site|in[- ]?office|in the office)\b`,
+  String.raw`\bwithin\s+\d+\s*miles\s+of\b`,
+  String.raw`\bcommut(?:e|ing)\s+(?:distance|to)\b`,
+  String.raw`\b(?:onsite|on-site|in-office)\s+(?:requirement|expectation)\b`,
+  // No bare "hybrid" pattern here, deliberately. It was tried and removed: it
+  // matched "a flexible hybrid work model that balances remote focus with
+  // vibrant office collaboration", which is a benefits blurb and not a
+  // requirement, and it mislabelled genuinely remote roles at three companies.
+  // Hybrid in the *location* field is a different signal and still flagged.
+].join('|'), 'i');
+
+/**
+ * A different restriction, and worth telling apart from the one above.
+ *
+ * "Remote, United States" whose body says "must be located in Eastern or
+ * Central Timezones" asks for no office time at all. It is still a real limit
+ * on who can take the job, so it earns its own flag rather than being filed
+ * under a name that says the body wants you on site.
+ */
+const GEO_LIMIT_RE = /\bmust\s+(?:live|reside|be located|be based)\s+(?:in|near|within)\b/i;
 
 const REMOTE_RE = /\b(?:100%\s*)?(?:fully\s+)?remote\b|\bwork from home\b|\bwfh\b|\btelecommut/i;
 const HYBRID_RE = /\bhybrid\b|\b\d\s*days?\s*(?:per|a)\s*week\s*(?:in|on|at)\b|\bin[- ]office\s+\d\s*days?\b/i;
@@ -156,6 +198,11 @@ export class Gate {
     this.passAmbiguous = loc.pass_ambiguous_locations ?? true;
     this.rejectRelocation = loc.reject_if_relocation_required ?? true;
     this.rejectNonUS = loc.reject_non_us ?? true;
+    // On by default: it costs nothing and it is the whole point of reading
+    // the body. Rejecting on it is opt-in, because a hybrid role in your own
+    // metro is still a job you might want.
+    this.checkRemoteClaim = loc.check_remote_claim_against_body ?? true;
+    this.rejectContradictedRemote = loc.reject_contradicted_remote ?? false;
 
     this.minAnnual = comp.min_annual ?? null;
     this.softFloor = comp.soft_floor ?? 0;
@@ -192,6 +239,20 @@ export class Gate {
       }
       flags.push(FLAGS.REMOTE);
       if (HYBRID_RE.test(location)) flags.push(FLAGS.HYBRID);
+
+      // The improvement over filtering on structured metadata alone: read the
+      // body and see whether the remote claim survives it. Caught here it is
+      // free; caught at the scoring stage it has already been paid for.
+      if (this.checkRemoteClaim) {
+        const body = posting.description || '';
+        if (GEO_LIMIT_RE.test(body)) flags.push(FLAGS.REMOTE_GEO_LIMITED);
+        if (ONSITE_REQUIREMENT_RE.test(body)) {
+          flags.push(FLAGS.REMOTE_CONTRADICTED);
+          if (this.rejectContradictedRemote) {
+            return { ok: false, reason: 'declared remote, body requires time on site', flags };
+          }
+        }
+      }
       return { ok: true, reason: null, flags };
     }
 

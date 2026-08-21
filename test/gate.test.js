@@ -205,6 +205,67 @@ test('applyGate returns survivors, rejections and a reason histogram', () => {
   assert.ok(passed[0].flags.includes(FLAGS.ONSITE_LOCAL));
 });
 
+test('a remote claim the body contradicts is caught for free', () => {
+  // The improvement over filtering on structured metadata. Every other job
+  // tool trusts the remote flag, so these postings pass every filter and are
+  // only caught by a human reading the body, or by an LLM already paid for.
+  const p = posting({
+    location: 'Remote - US',
+    remote: true,
+    description: `Great remote role. You will be expected to work on-site 3 days per week in our Chicago office. ${'A'.repeat(300)}`,
+  });
+  const r = gate.check(p);
+  assert.equal(r.passed, true, 'flagged by default, not rejected');
+  assert.ok(r.flags.includes(FLAGS.REMOTE_CONTRADICTED));
+
+  const strict = new Gate({
+    ...CFG,
+    location: { ...CFG.location, reject_contradicted_remote: true },
+  });
+  const rejected = strict.check(p);
+  assert.equal(rejected.passed, false);
+  assert.equal(rejected.reason, 'declared remote, body requires time on site');
+});
+
+test('a geographic limit is a different thing from an office requirement', () => {
+  // "must be located in Eastern or Central Timezones" asks for no office time
+  // at all. It is still a real limit on who can take the job, so it gets its
+  // own flag rather than one that claims the body wants you on site.
+  const p = posting({
+    location: 'Remote, United States',
+    remote: true,
+    description: `This person must be located in Eastern or Central Timezones. ${'A'.repeat(300)}`,
+  });
+  const r = gate.check(p);
+  assert.ok(r.flags.includes(FLAGS.REMOTE_GEO_LIMITED));
+  assert.ok(!r.flags.includes(FLAGS.REMOTE_CONTRADICTED));
+});
+
+test('benefits boilerplate is not an on-site requirement', () => {
+  // Measured against the live corpus: a bare "hybrid" pattern matched "a
+  // flexible hybrid work model that balances remote focus with vibrant office
+  // collaboration" and mislabelled genuinely remote roles at three companies.
+  // It went from 25 catches to 7 real ones when that pattern came out.
+  const boilerplate = posting({
+    location: 'Remote - US',
+    remote: true,
+    description: `We offer a flexible hybrid work model that balances remote focus with vibrant office collaboration. We have offices in Austin and Denver. ${'A'.repeat(300)}`,
+  });
+  const r = gate.check(boilerplate);
+  assert.ok(!r.flags.includes(FLAGS.REMOTE_CONTRADICTED));
+  assert.ok(!r.flags.includes(FLAGS.REMOTE_GEO_LIMITED));
+});
+
+test('the body check can be switched off', () => {
+  const off = new Gate({ ...CFG, location: { ...CFG.location, check_remote_claim_against_body: false } });
+  const p = posting({
+    location: 'Remote - US',
+    remote: true,
+    description: `Must work on-site 3 days per week in the office. ${'A'.repeat(300)}`,
+  });
+  assert.ok(!off.check(p).flags.includes(FLAGS.REMOTE_CONTRADICTED));
+});
+
 test('reasonBucket collapses per-posting detail into countable categories', () => {
   assert.equal(reasonBucket('onsite outside the Denver metro: Austin, TX'), 'onsite outside');
   assert.equal(reasonBucket('remote but non-US: Berlin, Germany'), 'remote but non-US');

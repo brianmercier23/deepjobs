@@ -84,6 +84,40 @@ The 77 are a deliberate improvement rather than a divergence: the reference
 implementation reports the compiled pattern (`title contains 'director\s+of'`)
 where this one reports the term a human wrote (`title contains 'director of'`).
 
+## Reading the body instead of trusting the remote flag
+
+Every job tool filters on structured remote metadata. An employer can tick
+"remote" and then write a description asking for three days a week in an
+office, so those postings pass every filter and are caught only by a person
+reading the body, or by an LLM that has already been paid for.
+
+Run over the 872 postings that pass the gate, of which 859 carry a REMOTE flag:
+
+| flag | count | meaning |
+|---|---|---|
+| `REMOTE_CONTRADICTED` | 4 | declared remote, body requires time on site |
+| `REMOTE_GEO_LIMITED` | 3 | declared remote, body restricts where you may live |
+
+Real catches, all from postings whose location field says remote:
+
+- *"Candidates located within commuting distance of NYC will work from our
+  office 4-5 days per week"* — listed as "New York City / Remote"
+- *"This is a remote position that must live near the Scottsdale, AZ or
+  Chicago, IL office"* — listed as "Remote, AZ or IL"
+- *"This person must be located in Eastern or Central Timezones"* — listed as
+  "Remote, United States"
+
+The first attempt reported 25 rather than 7, and 18 of those were wrong. A
+bare `hybrid` pattern was matching *"a flexible hybrid work model that
+balances remote focus with vibrant office collaboration"*, which is a benefits
+blurb. Removing it took the count from 25 to 7. The number that matters here
+is the one left after the false positives come out, because a gate that
+mislabels a genuinely remote role is doing the one thing this gate must not do.
+
+Known gap, left for tuning against the corpus: phrasing that puts the office
+before the cadence, as in *"work in person at our office 4-5 days a week"*, is
+not matched yet.
+
 ## Workday, live
 
 Measured 2026-08-20 against `jll.wd1` / `jllcareers`.
