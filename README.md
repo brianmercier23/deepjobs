@@ -17,14 +17,30 @@ LLM only for the small remainder.
 47 boards, 0 failures, 2,929 postings, 21.2 seconds, and a description body on
 99.97% of them. Against the private implementation this replaces, the hash sets
 match exactly: 2,897 unique postings each, zero present in one and not the
-other. Details and method in [docs/verification.md](docs/verification.md).
+other, and zero gate decisions differ across all 2,929.
+
+The economics are the point:
+
+| stage | postings | cost |
+|---|---|---|
+| collect, dedupe, tag, gate | 2,929 | **$0** |
+| score | 872 (29.8%) | ~$3.40 |
+| the same crawl with no gate | 2,929 | ~$11.40 |
+
+Scoring is $0.0039 a posting, so the free stages are worth about $8 a crawl.
+Sampling temperature is pinned at 0 and 25 of 28 rescored postings come back
+identical; against the implementation this replaces, the median difference is
+zero.
+
+Method for every number here, including the ones that came out wrong, is in
+[docs/verification.md](docs/verification.md).
 
 ## Status
 
-Under construction. The engine runs end to end -- collect, dedupe, tag, gate,
-score, report -- and every claim below is measured in
-[docs/verification.md](docs/verification.md). Still to come: the `setup`
-interview skill and the published package.
+The engine runs end to end -- collect, dedupe, tag, gate, score, report -- with
+167 tests that need no API key and no network. Every claim in this README is
+measured in [docs/verification.md](docs/verification.md), including the one
+that turned out to be false. Not yet published to npm.
 
 ## Getting started
 
@@ -111,8 +127,9 @@ structurally, and there is a test that fails if that ever stops being true:
 | | `data/seen.db`, `.env` |
 
 `deepjobs init` copies `examples/` into `config/` so the tool runs immediately
-against a fictional example persona. `deepjobs setup` interviews you and writes
-a real one.
+against a fictional example persona. `deepjobs setup` installs a Claude Code
+skill that interviews you and writes a real one, verifying every board slug
+before it writes it.
 
 `signals/ai-forward.yaml` ships tracked on purpose. It is the one keyword input
 that is not personal, and it is the part most worth extending.

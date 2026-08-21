@@ -15,7 +15,9 @@ import {
 // slugs
 
 test('a company name becomes the spellings a board slug actually takes', () => {
-  assert.deepEqual(slugCandidates('Juniper Square'), ['junipersquare', 'juniper-square', 'juniper', 'Juniper Square']);
+  // The third candidate is the one that hits for this company, which is the
+  // whole reason there is a list rather than a single guess.
+  assert.deepEqual(slugCandidates('Palantir Technologies'), ['palantirtechnologies', 'palantir-technologies', 'palantir', 'Palantir Technologies']);
   assert.deepEqual(slugCandidates('Stripe'), ['stripe', 'Stripe']);
   // Punctuation is dropped, not turned into a hyphen: no board slug has it.
   assert.deepEqual(slugCandidates('Bosch Group, Inc.'), ['boschgroupinc', 'bosch-group-inc', 'bosch', 'Bosch Group, Inc.']);

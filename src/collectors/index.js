@@ -29,7 +29,7 @@ export function boardLabel(target) {
  *
  * `name` overrides the display company, and it matters more than it looks:
  * Lever and Ashby report only the slug, so without it every report says
- * "junipersquare" instead of "Juniper Square".
+ * "palantir" instead of "Palantir Technologies".
  *
  * Workday is addressed by tenant, host and site rather than a slug, so it
  * takes the whole target instead of a string.

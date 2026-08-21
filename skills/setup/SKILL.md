@@ -169,7 +169,7 @@ in question 5, anyone whose product they use.
 Then, **for each one**, run discovery and use what comes back:
 
 ```bash
-deepjobs discover "Juniper Square"
+deepjobs discover "Palantir Technologies"
 deepjobs discover --url https://www.example.com/careers
 ```
 
