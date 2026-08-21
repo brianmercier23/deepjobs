@@ -19,8 +19,8 @@ import {
   loadGates,
 } from './config.js';
 import {
-  openDb, recordGate, recordPostings, recordScore, report, splitNew, stats,
-  touchSeen, upsertBoard,
+  findByHashPrefix, openDb, recordGate, recordPostings, recordScore, report, setVerdict,
+  splitNew, stats, touchSeen, upsertBoard,
 } from './db.js';
 
 export const USAGE = `deepjobs ${VERSION}
@@ -33,6 +33,7 @@ Usage
   deepjobs run [options]              collect, dedupe, tag, gate, score
   deepjobs discover <name|--url>      find a company's board slug
   deepjobs report [options]           list what scored well
+  deepjobs mark <id> yes|no|maybe     record what you thought of one
   deepjobs stats                      what is in the database
 
 Run options
@@ -53,14 +54,20 @@ Report options
   --limit <n>        show at most n
   --json             machine-readable output
 
+Mark options
+  --why "<text>"     why you thought so. This is the part worth writing down:
+                     the score is the model's opinion, this is yours.
+
+The id is the short hash \`report\` prints. Any unambiguous prefix works.
+
 Scoring is the only stage that costs money, and it needs ANTHROPIC_API_KEY in
 the environment or in a .env file. Everything else runs for nothing.
 `;
 
-const KNOWN = new Set(['init', 'setup', 'run', 'discover', 'report', 'stats']);
+const KNOWN = new Set(['init', 'setup', 'run', 'discover', 'report', 'mark', 'stats']);
 
 const FLAGS = new Set(['dry-run', 'no-score', 'ai-forward', 'all', 'json', 'force']);
-const VALUED = new Set(['limit', 'min', 'db', 'url', 'config']);
+const VALUED = new Set(['limit', 'min', 'db', 'url', 'config', 'why']);
 
 /** A small parser, because argv shapes are exactly where a dependency is not worth it. */
 export function parseArgs(argv) {
@@ -298,6 +305,42 @@ async function cmdDiscover(opts, positional, io, deps = {}) {
 }
 
 // --------------------------------------------------------------------------
+// mark
+
+export const VERDICTS = new Set(['yes', 'no', 'maybe']);
+
+/**
+ * The one thing in this database the pipeline cannot produce.
+ *
+ * `recordPostings` never touches the application table, so a crawl can never
+ * overwrite what a person decided about a posting. That was deliberate from
+ * the schema onward - and it left the column with no way in at all, which made
+ * the feedback loop the schema promises unreachable. This is the door.
+ *
+ * It is also the input to the only worthwhile next feature: tuning a rubric
+ * against postings a human has already judged. Nothing can calibrate against
+ * zero examples.
+ */
+function cmdMark(opts, positional, io) {
+  const [prefix, verdict] = positional;
+  if (!prefix || !verdict) throw new ConfigError('usage: deepjobs mark <id> yes|no|maybe [--why "..."]');
+  if (!VERDICTS.has(verdict.toLowerCase())) {
+    throw new ConfigError(`verdict must be one of ${[...VERDICTS].join(', ')}, got "${verdict}"`);
+  }
+
+  const db = openDb(opts.db ?? 'data/seen.db');
+  const { posting, error } = findByHashPrefix(db, prefix);
+  if (error) throw new ConfigError(error);
+
+  setVerdict(db, posting.hash, verdict.toLowerCase(), opts.why ?? null);
+  // Echo the posting back. A verdict recorded against the wrong row is worse
+  // than no verdict, and the only way to catch that is to show what was hit.
+  io.out(`${verdict.toLowerCase()}  ${posting.company} - ${posting.title}\n`);
+  if (opts.why) io.out(`      ${opts.why}\n`);
+  return 0;
+}
+
+// --------------------------------------------------------------------------
 // report
 
 function cmdReport(opts, io) {
@@ -323,10 +366,16 @@ function cmdReport(opts, io) {
   }
 
   for (const row of shown) {
-    io.out(`${String(row.overall).padStart(3)}  ${row.band.padEnd(8)}  ${row.company} - ${row.title}\n`);
+    // Your own verdict sits next to the score, because the two disagreeing is
+    // the interesting case and the only one worth acting on.
+    const mine = row.myVerdict ? `  [you: ${row.myVerdict}]` : '';
+    io.out(`${String(row.overall).padStart(3)}  ${row.band.padEnd(8)}  ${row.company} - ${row.title}${mine}\n`);
     io.out(`     ${row.location || '(location not stated)'}${row.aiForward ? '  [ai-forward]' : ''}\n`);
     if (row.rationale) io.out(`     ${row.rationale}\n`);
-    io.out(`     ${row.url}\n\n`);
+    if (row.myWhy) io.out(`     you: ${row.myWhy}\n`);
+    io.out(`     ${row.url}\n`);
+    // The id goes last. It is only there to be typed back into `mark`.
+    io.out(`     ${row.shortHash}\n\n`);
   }
   if (limit && rows.length > shown.length) {
     io.out(`${rows.length - shown.length} more above --min. Raise --limit to see them.\n`);
@@ -384,6 +433,7 @@ export async function main(argv, io = {
       case 'run': return await cmdRun(opts, io, deps);
       case 'discover': return await cmdDiscover(opts, positional, io, deps);
       case 'report': return cmdReport(opts, io);
+      case 'mark': return cmdMark(opts, positional, io);
       case 'stats': return cmdStats(opts, io);
       case 'setup': return cmdSetup(io);
       default: return 2;

@@ -3,17 +3,19 @@ import { fetchGreenhouse } from './greenhouse.js';
 import { fetchLever } from './lever.js';
 import { fetchAshby } from './ashby.js';
 import { fetchWorkable } from './workable.js';
+import { fetchRecruitee } from './recruitee.js';
 import { fetchSmartRecruiters } from './smartrecruiters.js';
 import { fetchWorkday } from './workday.js';
 
 export { ATSError };
 
-// The five that are addressed by a single slug.
+// The six that are addressed by a single slug.
 export const FETCHERS = {
   greenhouse: fetchGreenhouse,
   lever: fetchLever,
   ashby: fetchAshby,
   workable: fetchWorkable,
+  recruitee: fetchRecruitee,
   smartrecruiters: fetchSmartRecruiters,
 };
 

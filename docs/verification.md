@@ -58,7 +58,7 @@ ghosts. The hash deliberately does not include the description.
 ## Reproducing
 
 ```bash
-npm test                          # 167 tests, no API key, no network
+npm test                          # 174 tests, no API key, no network
 node scripts/record-fixtures.js   # refresh the recorded board responses
 ```
 
@@ -402,6 +402,71 @@ because breaking any of them produces a rubric that scores without complaining:
   columns
 - the rubric contains no output format, because `src/score.js` appends one
 - no board slug is written that `discover` has not verified
+
+## Which platforms are worth having
+
+Board count is not this tool's axis -- [ats-scrapers][a] carries 49 sources and
+[job-board-aggregator][b] seven, and neither stores a description body. So the
+question is not "how many" but "which ones answer with the posting". Every
+candidate below was probed live on 2026-08-21.
+
+| platform | list response | verdict |
+|---|---|---|
+| **Recruitee** | description **and** requirements, remote/hybrid/on-site, structured salary, ISO dates | **added** |
+| Rippling | 748 postings, `name`/`url`/`workLocation` only | detail call per posting; not now |
+| Breezy | JSON, no description field | same |
+| BambooHR | JSON, no description field | same |
+| iCIMS | HTML portal | out of scope |
+| Taleo | tenant-specific, no reachable public JSON | out of scope |
+| SuccessFactors | JavaScript-rendered HTML | out of scope |
+
+Recruitee is the richest list response of any platform here. One
+unauthenticated call to `https://{slug}.recruitee.com/api/offers/` returned, for
+`channable`, a 5,287-character description **plus** an 8,560-character
+requirements field, a three-way remote flag, and `{min, max, period, currency}`
+salary -- with no detail call. Its docs state outright that the API needs no
+authorization, because it is the endpoint a company's own careers page calls.
+Like Workable and unlike SmartRecruiters, it 404s an unknown slug, so its zero
+is honest.
+
+The three enterprise platforms are absent on purpose, and that is a position
+rather than a gap: they serve rendered HTML portals, and reading those needs a
+headless browser, which is a different tool with a different failure mode.
+
+**Two things Recruitee forced that no other board did.** It is the only platform
+that answers the remote question in three parts, so `hybrid: true` folds to
+*not remote* rather than being lost -- folding it the other way is exactly the
+mistake the gate exists to catch in the body. And its salaries are frequently
+monthly and in euros: `EUR 4,500 - 6,000 per month` is a perfectly good annual
+salary and a catastrophic number to hand a gate comparing against a dollar
+floor. Anything not USD-per-period-convertible keeps its text and leaves the
+numeric columns null. Converting a currency would mean carrying an exchange
+rate that is wrong the day after it is written.
+
+[a]: https://github.com/kalil0321/ats-scrapers
+[b]: https://github.com/Feashliaa/job-board-aggregator
+
+## The verdict loop
+
+`application.my_verdict` existed from the schema onward, `db.js` had
+`setVerdict` and `getVerdict`, and nothing reached them. The column the setup
+skill points at as the input to any future calibration was unwritable.
+
+`deepjobs mark <id> yes|no|maybe --why "..."` is the door. Three things about it
+are tested rather than assumed:
+
+- **A crawl cannot overwrite it.** `recordPostings` never touches the
+  application table, so re-running the pipeline over a posting you have already
+  judged leaves the judgement intact. Verified by marking, re-running, and
+  reading it back.
+- **An ambiguous id lists candidates instead of picking one.** A verdict
+  recorded against the wrong posting is worse than no verdict, and it is the
+  one field in the database nothing else can reconstruct.
+- **The posting is echoed back on success**, for the same reason.
+
+`report` now prints the eight-character id and any verdict already recorded, so
+the score and your own opinion sit on the same line. The two disagreeing is the
+interesting case.
 
 ## Still to verify
 

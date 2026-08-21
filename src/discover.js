@@ -31,6 +31,7 @@ export const LINK_PATTERNS = [
   ['ashby', String.raw`api\.ashbyhq\.com/posting-api/job-board/([a-z0-9_.-]+)`],
   ['workable', String.raw`apply\.workable\.com/([a-z0-9_-]+)`],
   ['workable', String.raw`([a-z0-9_-]+)\.workable\.com`],
+  ['recruitee', String.raw`([a-z0-9_-]+)\.recruitee\.com`],
   ['smartrecruiters', String.raw`jobs\.smartrecruiters\.com/(?:oneclick-ui/company/)?([A-Za-z0-9_-]+)`],
   ['smartrecruiters', String.raw`careers\.smartrecruiters\.com/([A-Za-z0-9_-]+)`],
   ['smartrecruiters', String.raw`api\.smartrecruiters\.com/v1/companies/([A-Za-z0-9_-]+)`],
@@ -45,7 +46,7 @@ export const IGNORE_SLUGS = new Set(['embed', 'job_board', 'jobs', 'careers', 'w
  * SmartRecruiters answers HTTP 200 with an empty list for any slug, real or
  * invented: `Ubisoft` returns nothing and looks dead, `Ubisoft2` returns 271.
  * So a zero there is not evidence of anything and cannot be reported as a hit.
- * The other four return a real 404 for an unknown slug, which makes their zero
+ * The other five return a real 404 for an unknown slug, which makes their zero
  * honest — "real board, nobody hiring today" is worth adding to a list.
  */
 export const NEEDS_NONZERO = new Set(['smartrecruiters']);

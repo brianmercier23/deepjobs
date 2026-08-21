@@ -29,6 +29,15 @@ workable:
   # honest: real board, nobody hiring today. veriff is one of those.
   - slug: veriff
 
+recruitee:
+  # The richest list response of any platform here: one unauthenticated call
+  # returns the description AND the requirements, a three-way
+  # remote/hybrid/on-site split, and a structured salary. No detail call per
+  # posting. Salaries are often per-month and in euros, which is why a
+  # non-USD or non-annual figure is passed through as text rather than
+  # converted into a number the gate would compare against a dollar floor.
+  - slug: channable
+
 workday:
   # Workday needs three parts and none of them can be guessed. A wrong site
   # path returns 422 even when the tenant is real. `deepjobs discover --url`

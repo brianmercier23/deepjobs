@@ -20,6 +20,7 @@ import { BASE as GH } from '../src/collectors/greenhouse.js';
 import { BASE as LEVER } from '../src/collectors/lever.js';
 import { BASE as ASHBY } from '../src/collectors/ashby.js';
 import { BASE as WORKABLE } from '../src/collectors/workable.js';
+import { apiBase as recruiteeBase } from '../src/collectors/recruitee.js';
 import { BASE as SR } from '../src/collectors/smartrecruiters.js';
 import { apiBase as workdayBase, PAGE as WD_PAGE } from '../src/collectors/workday.js';
 
@@ -38,6 +39,7 @@ const TARGETS = {
   lever: 'palantir',
   ashby: 'linear',
   workable: 'persado',
+  recruitee: 'channable',
   smartrecruiters: 'Ubisoft2',
   workday: { tenant: 'jll', host: 'wd1', site: 'jllcareers' },
 };
@@ -55,6 +57,9 @@ save('ashby', { ...ashby, jobs: (ashby.jobs ?? []).slice(0, KEEP) });
 
 const workable = await fetchJson(`${WORKABLE}/${TARGETS.workable}`, { params: { details: 'true' } });
 save('workable', { ...workable, jobs: (workable.jobs ?? []).slice(0, KEEP) });
+
+const recruitee = await fetchJson(recruiteeBase(TARGETS.recruitee));
+save('recruitee', { ...recruitee, offers: (recruitee.offers ?? []).slice(0, KEEP) });
 
 const srBase = `${SR}/${TARGETS.smartrecruiters}/postings`;
 const sr = await fetchJson(srBase, { params: { limit: 100, offset: 0 } });

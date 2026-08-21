@@ -1,0 +1,100 @@
+# A daily crawl, in a private repository.
+#
+# Copy to .github/workflows/daily.yml in a fork or a private repo of your own,
+# add ANTHROPIC_API_KEY as a repository secret, and this runs the whole pipeline
+# every morning and leaves the result as a downloadable artifact.
+#
+# ---------------------------------------------------------------------------
+# READ THIS BEFORE ENABLING IT
+#
+# `config/` holds your rubric, your board list and your salary floor, and it is
+# gitignored precisely so it never reaches a public repository. A scheduled run
+# needs those files to exist on the runner, which means one of:
+#
+#   1. A PRIVATE repository, with config/ committed. Simplest, and fine.
+#   2. This public repo, with config/ restored from secrets at run time (below).
+#
+# Do not commit config/ to a public fork. The .gitignore is there for a reason
+# and a workflow is not a good reason to override it.
+#
+# The database is the other half. `data/seen.db` is what makes a run cheap: it
+# remembers every posting already seen, so day two scores only what is new.
+# Without it, every run rescores the whole corpus and pays for it. The cache
+# step below carries it between runs.
+# ---------------------------------------------------------------------------
+
+name: daily
+
+on:
+  schedule:
+    # 06:00 UTC. Pick an odd minute: everything on the hour queues behind
+    # everyone else's cron and GitHub delays scheduled runs under load.
+    - cron: '37 6 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # node:sqlite needs 22.5 or newer. There is no native module to
+          # build, so there is nothing else to install.
+          node-version: '24'
+
+      - run: npm ci
+
+      # Restore yesterday's database. The key changes every day so the cache is
+      # always written; restore-keys falls back to the most recent one.
+      - uses: actions/cache@v4
+        with:
+          path: data/seen.db
+          key: deepjobs-db-${{ github.run_id }}
+          restore-keys: deepjobs-db-
+
+      # Option 2 from the header: config from secrets, for a public repo.
+      # Delete this step if your repo is private and config/ is committed.
+      - name: Restore config from secrets
+        if: ${{ secrets.DEEPJOBS_RUBRIC != '' }}
+        env:
+          RUBRIC: ${{ secrets.DEEPJOBS_RUBRIC }}
+          COMPANIES: ${{ secrets.DEEPJOBS_COMPANIES }}
+          GATES: ${{ secrets.DEEPJOBS_GATES }}
+        run: |
+          mkdir -p config
+          printf '%s' "$RUBRIC"    > config/rubric.md
+          printf '%s' "$COMPANIES" > config/companies.yaml
+          printf '%s' "$GATES"     > config/gates.yaml
+
+      - name: Crawl, gate and score
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DEEPJOBS_CONTACT: ${{ secrets.DEEPJOBS_CONTACT }}
+        # Without a key this still crawls, tags and gates for free; add
+        # --no-score to make that explicit and never spend anything.
+        run: node bin/deepjobs.js run
+
+      - name: Today's shortlist
+        # Exits 1 when nothing cleared the bar, which is a normal morning and
+        # not a failed build.
+        run: node bin/deepjobs.js report --min 60 --json > shortlist.json || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shortlist
+          path: shortlist.json
+          retention-days: 14
+
+      - name: Summary
+        run: |
+          {
+            echo '## deepjobs'
+            echo '```'
+            node bin/deepjobs.js stats
+            echo '```'
+            node bin/deepjobs.js report --min 60 --limit 10 || echo 'Nothing cleared 60 today.'
+          } >> "$GITHUB_STEP_SUMMARY"

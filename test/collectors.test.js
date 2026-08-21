@@ -8,6 +8,7 @@ import { mapGreenhouse } from '../src/collectors/greenhouse.js';
 import { mapLever } from '../src/collectors/lever.js';
 import { mapAshby } from '../src/collectors/ashby.js';
 import { mapWorkable } from '../src/collectors/workable.js';
+import { mapRecruitee, mapSalary } from '../src/collectors/recruitee.js';
 import { mapSmartRecruiters, mapDetail } from '../src/collectors/smartrecruiters.js';
 import { PLATFORMS } from '../src/collectors/index.js';
 import { isoDate } from '../src/lib/dates.js';
@@ -233,10 +234,10 @@ test('every collector survives an empty or malformed response', () => {
   assert.deepEqual(mapSmartRecruiters(null, new Map(), 'acme'), []);
 });
 
-test('the platform registry is the six that are wired up', () => {
+test('the platform registry is the seven that are wired up', () => {
   assert.deepEqual(
     [...PLATFORMS].sort(),
-    ['ashby', 'greenhouse', 'lever', 'smartrecruiters', 'workable', 'workday'],
+    ['ashby', 'greenhouse', 'lever', 'recruitee', 'smartrecruiters', 'workable', 'workday'],
   );
 });
 
@@ -250,4 +251,49 @@ test('isoDate handles every shape the boards send', () => {
   assert.equal(isoDate(null), null);
   assert.equal(isoDate(''), null);
   assert.equal(isoDate('sometime soon'), null);
+});
+
+test('recruitee maps the richest list response of any board here', () => {
+  const postings = mapRecruitee(fixture('recruitee'), 'channable', 'Channable');
+  assert.equal(postings.length, 3);
+  for (const p of postings) {
+    assertContract(p, { platform: 'recruitee', slug: 'channable' });
+    assert.equal(p.company, 'Channable');
+    // One call, and the body is already here. Every other platform that
+    // answers this fast answers without a description.
+    assert.ok(p.description.length > 4000, `thin body: ${p.description.length}`);
+    assert.ok(p.employmentType);
+  }
+});
+
+test('recruitee answers the remote question in three parts, not one', () => {
+  // It is the only board here that distinguishes hybrid from onsite in the
+  // list row. Folding hybrid into "not remote" is correct; folding it into
+  // "remote" is the exact mistake the gate exists to catch in the body.
+  const shape = (offer) => mapRecruitee({ offers: [{ title: 'x', description: 'y', ...offer }] }, 's')[0].remote;
+  assert.equal(shape({ remote: true, hybrid: false, on_site: false }), true);
+  assert.equal(shape({ remote: false, hybrid: true, on_site: false }), false);
+  assert.equal(shape({ remote: false, hybrid: false, on_site: true }), false);
+  // A stated location counts as an answer even when it is a vague one, which
+  // is the convention every collector here shares: the gate has its own
+  // LOCATION_UNKNOWN handling and does not want it guessed at twice.
+  assert.equal(shape({ location: 'Multiple locations' }), false);
+  // Nothing said anywhere at all is the only case that stays unknown.
+  assert.equal(shape({}), null);
+});
+
+test('a salary in the wrong currency or the wrong period stays out of the numbers', () => {
+  // The gate compares against an annual dollar floor. A monthly euro figure
+  // put in that column reads as a $4,500 job, which would reject it.
+  assert.deepEqual(mapSalary({ min: '4500', max: '6000', period: 'month', currency: 'EUR' }), {
+    salaryMin: null, salaryMax: null, salaryRaw: 'EUR 4,500 - 6,000 per month',
+  });
+  // Dollars per year are directly comparable, so they are kept.
+  assert.deepEqual(mapSalary({ min: '95000', max: '120000', period: 'year', currency: 'USD' }), {
+    salaryMin: 95_000, salaryMax: 120_000, salaryRaw: 'USD 95,000 - 120,000 per year',
+  });
+  // Dollars per hour are comparable once annualised, which is arithmetic and
+  // not a guess about an exchange rate.
+  assert.equal(mapSalary({ min: '50', max: '60', period: 'hour', currency: 'USD' }).salaryMin, 104_000);
+  assert.deepEqual(mapSalary(null), { salaryMin: null, salaryMax: null, salaryRaw: null });
 });

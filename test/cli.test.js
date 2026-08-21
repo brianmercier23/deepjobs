@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { main, parseArgs, USAGE } from '../src/cli.js';
+import { findByHashPrefix, getVerdict, openDb } from '../src/db.js';
 import {
   CONFIG_FILES, ConfigError, initConfig, installSkill, loadCompanies, loadEnv, loadGates,
 } from '../src/config.js';
@@ -349,4 +350,74 @@ test('the shipped skill states the constraints the code depends on', () => {
   assert.match(skill, /Never write a board slug you have not verified/);
   // The whole privacy design is that these three files are not tracked.
   assert.match(skill, /gitignored/);
+});
+
+// --------------------------------------------------------------------------
+// mark
+
+async function seeded() {
+  const { configDir, db } = scratchConfig();
+  writeFileSync(join(configDir, 'companies.yaml'), 'greenhouse:\n  - slug: acme\n');
+  await main(['run', '--no-score', '--config', configDir, '--db', db], capture(), { fetchImpl: fakeBoard(JOBS) });
+  return db;
+}
+
+test('a verdict is recorded against a short id and echoed back', async () => {
+  const db = await seeded();
+  const io = capture();
+  const short = openDb(db).prepare('SELECT hash FROM posting ORDER BY hash').get().hash.slice(0, 8);
+
+  assert.equal(await main(['mark', short, 'yes', '--why', 'the automation is the job', '--db', db], io), 0);
+  // Echoing the posting back is the only way to catch a verdict landing on the
+  // wrong row, which is worse than no verdict at all.
+  assert.match(io.stdout(), /^yes {2}\w/m);
+  assert.match(io.stdout(), /the automation is the job/);
+
+  const stats = capture();
+  await main(['stats', '--db', db], stats);
+  assert.match(stats.stdout(), /1 with your own verdict/);
+});
+
+test('a crawl can never overwrite what a person decided', async () => {
+  const db = await seeded();
+  const hash = openDb(db).prepare('SELECT hash FROM posting ORDER BY hash').get().hash;
+  await main(['mark', hash.slice(0, 8), 'no', '--why', 'onsite in practice', '--db', db], capture());
+
+  // The whole point of keeping my_verdict in its own table: recordPostings
+  // never writes there, so re-running the pipeline cannot reach it.
+  const { configDir } = scratchConfig();
+  writeFileSync(join(configDir, 'companies.yaml'), 'greenhouse:\n  - slug: acme\n');
+  await main(['run', '--no-score', '--config', configDir, '--db', db], capture(), { fetchImpl: fakeBoard(JOBS) });
+
+  assert.deepEqual(getVerdict(openDb(db), hash), { verdict: 'no', why: 'onsite in practice' });
+});
+
+test('an ambiguous id lists the candidates instead of guessing', async () => {
+  const db = await seeded();
+  const conn = openDb(db);
+  const hashes = conn.prepare('SELECT hash FROM posting').all().map((r) => r.hash);
+  // Find the longest prefix the two seeded postings share, then hand over one
+  // character less so the lookup is genuinely ambiguous.
+  let shared = 0;
+  while (hashes[0][shared] === hashes[1][shared]) shared += 1;
+
+  const short = hashes[0].slice(0, Math.max(4, shared));
+  const { error, posting } = findByHashPrefix(conn, short);
+  if (shared >= 4) {
+    assert.ok(!error, 'a prefix past the divergence point should resolve');
+    assert.ok(posting);
+  }
+  assert.match(findByHashPrefix(conn, hashes[0].slice(0, 2)).error ?? '', /not a hash/);
+  assert.match(findByHashPrefix(conn, 'ffffffff').error ?? '', /no posting starts with/);
+});
+
+test('mark refuses a verdict it cannot record and says what it wanted', async () => {
+  const db = await seeded();
+  const io = capture();
+  assert.equal(await main(['mark', 'abcdef12', 'probably', '--db', db], io), 1);
+  assert.match(io.stderr(), /yes, no, maybe/);
+
+  const io2 = capture();
+  assert.equal(await main(['mark', '--db', db], io2), 1);
+  assert.match(io2.stderr(), /usage: deepjobs mark/);
 });

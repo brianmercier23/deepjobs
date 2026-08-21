@@ -344,6 +344,27 @@ export function setVerdict(db, hash, verdict, why = null) {
   `).run(hash, verdict, why);
 }
 
+/**
+ * Resolve the short hash a report prints back to a posting.
+ *
+ * Nobody types 64 hex characters, so the report shows the first eight and this
+ * accepts any prefix. An ambiguous prefix is an error rather than a first
+ * match: silently marking the wrong posting is worse than asking again, and
+ * the human verdict is the one field in this database nothing else can
+ * reconstruct.
+ */
+export function findByHashPrefix(db, prefix) {
+  const clean = String(prefix ?? '').trim().toLowerCase();
+  if (!/^[0-9a-f]{4,64}$/.test(clean)) return { error: `"${prefix}" is not a hash. Run \`deepjobs report\` for the short ids.` };
+  const rows = db.prepare('SELECT * FROM posting WHERE hash LIKE ? ORDER BY hash LIMIT 5').all(`${clean}%`);
+  if (!rows.length) return { error: `no posting starts with "${clean}"` };
+  if (rows.length > 1) {
+    const shown = rows.map((r) => `  ${r.hash.slice(0, 12)}  ${r.company} - ${r.title}`).join('\n');
+    return { error: `"${clean}" matches ${rows.length} postings. Use more characters:\n${shown}` };
+  }
+  return { posting: rowToPosting(rows[0]) };
+}
+
 export function getVerdict(db, hash) {
   const row = db.prepare('SELECT my_verdict, my_why FROM application WHERE hash = ?').get(hash);
   return row ? { verdict: row.my_verdict, why: row.my_why } : null;
@@ -404,7 +425,7 @@ export function report(db, { minScore = 0, aiForwardOnly = false, unwrittenOnly 
     SELECT p.*, s.overall, s.rationale, s.flags AS score_flags,
            s.location_viability, s.capability_overlap, s.domain_leverage,
            s.build_latitude, s.seniority_fit, s.signal_quality,
-           g.result AS gate_result, a.my_verdict
+           g.result AS gate_result, a.my_verdict, a.my_why
     FROM posting p
     JOIN score s ON s.hash = p.hash
     LEFT JOIN gate_result g ON g.hash = p.hash
@@ -431,6 +452,10 @@ export function report(db, { minScore = 0, aiForwardOnly = false, unwrittenOnly 
     scoreFlags: fromJson(row.score_flags),
     gateResult: row.gate_result,
     myVerdict: row.my_verdict,
+    myWhy: row.my_why,
+    // What a person types to mark this one. Eight characters is unambiguous
+    // across corpora far larger than anything a job search produces.
+    shortHash: row.hash.slice(0, 8),
   }));
 }
 

@@ -12,6 +12,21 @@ one worth applying to, and you only find that out in the body too.
 tags them for free, throws out what was never viable, and spends money on an
 LLM only for the small remainder.
 
+**This is not an aggregator.** There are good ones -- [ats-scrapers][a] carries
+49 sources and 4.2M jobs, [job-board-aggregator][b] indexes a million positions
+across seven platforms -- and if you want a searchable index of everything,
+use those. Both store title, company, location and a link. Neither stores the
+description body, and neither scores anything against what *you* want; the
+closest is keyword tiers applied to job titles, which is the input this tool
+exists to argue against.
+
+The trade here is the opposite one. Seven platforms instead of fifty, every
+posting read in full, and a rubric you write that decides what the score means.
+Precision for one person, not coverage for everyone.
+
+[a]: https://github.com/kalil0321/ats-scrapers
+[b]: https://github.com/Feashliaa/job-board-aggregator
+
 ## Measured
 
 47 boards, 0 failures, 2,929 postings, 21.2 seconds, and a description body on
@@ -81,15 +96,32 @@ node bin/deepjobs.js stats
 trimming afterwards, so a first run is seconds rather than minutes. `--dry-run`
 does everything and writes nothing. `deepjobs --help` lists the rest.
 
+Then tell it when it was wrong:
+
+```bash
+node bin/deepjobs.js mark 36f16792 no --why "remote in the title, three days onsite in the body"
+```
+
+To run it every morning, copy
+[`examples/daily.yml.example`](examples/daily.yml.example) into
+`.github/workflows/`. Read its header first: it explains why the database has
+to be cached between runs, and why `config/` must not be committed to a public
+repo.
+
 ## How it works
 
 ```
 collect -> dedupe -> tag -> gate -> score -> report
 ```
 
-- **collect** hits ATS JSON APIs directly across six platforms: Greenhouse,
-  Lever, Ashby, Workable, SmartRecruiters and Workday. No search API in the middle, no dependency on what
-  a search engine happened to index, no per-query billing.
+- **collect** hits ATS JSON APIs directly across seven platforms: Greenhouse,
+  Lever, Ashby, Workable, Recruitee, SmartRecruiters and Workday. No search API
+  in the middle, no dependency on what a search engine happened to index, no
+  per-query billing. Every one of them is a public endpoint a company's own
+  careers page already calls; there is no login, no proxy, and no headless
+  browser, which is also why iCIMS, Taleo and SuccessFactors are absent. Their
+  boards are rendered HTML portals, and scraping those is a different tool with
+  a different failure mode.
 - **dedupe** hashes normalized company, title and location, so the same role
   posted to two boards counts once, and a re-run can never overwrite a verdict
   you already recorded.
@@ -104,6 +136,11 @@ collect -> dedupe -> tag -> gate -> score -> report
   prompt, and returns six sub-scores plus a rationale. Sampling temperature is
   pinned at 0: rescoring the same postings at the default moved one of them 30
   points, and a score that changes when the posting did not is not a score.
+- **report**, and then `deepjobs mark <id> yes|no --why "..."`. Your verdict
+  lives in a separate table the crawler never writes to, so re-running the
+  pipeline structurally cannot overwrite what you decided. It is also the only
+  thing in the database that could ever tune the rubric automatically, which is
+  why there is a door to it.
 
 ## Two dependencies
 
