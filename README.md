@@ -38,11 +38,16 @@ collect -> dedupe -> tag -> gate -> score -> report
   posted to two boards counts once, and a re-run can never overwrite a verdict
   you already recorded.
 - **tag** applies [`signals/ai-forward.yaml`](signals/ai-forward.yaml) to every
-  description body by regex. Free, and it runs on everything.
+  description body by regex. Free, and it runs on everything. It marks a
+  posting worth reading, not a posting worth applying to -- measured, the tag
+  barely moves the final score, and [docs/verification.md](docs/verification.md)
+  shows the numbers rather than hiding them.
 - **gate** rejects on location, compensation and title using the body text.
   Also free. This is the stage that makes the whole thing cheap.
 - **score** sends only what survived to an LLM, with your rubric as the system
-  prompt, and returns six sub-scores plus a rationale.
+  prompt, and returns six sub-scores plus a rationale. Sampling temperature is
+  pinned at 0: rescoring the same postings at the default moved one of them 30
+  points, and a score that changes when the posting did not is not a score.
 
 ## Two dependencies
 

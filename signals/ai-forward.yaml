@@ -4,10 +4,19 @@
 # Applied by regex at ingest, word-boundary matched, before anything is paid
 # for. Costs nothing and runs on every posting.
 #
-# Why it exists: across a scored corpus, postings naming the tools in `forward`
-# landed in a 65-81 band, while postings naming the tools in `legacy` landed in
-# a 25-40 band. That split is detectable for free. Extend both lists; they are
-# meant to be edited.
+# Why it exists: what a posting names is what a team actually builds with, and
+# a title never says. `forward` is the tooling of a team that ships with modern
+# AI; `legacy` is the tooling of one that does not.
+#
+# What this is NOT: a score. Measured over 100 gate-passing postings, the tag
+# moves build latitude by about 2 points of 15 and barely moves the total, and
+# legacy-tagged postings scored slightly higher than forward-tagged ones on a
+# rubric written for an operations candidate. An earlier note here claimed a
+# 65-81 versus 25-40 split; that was a hypothesis and it did not survive
+# measurement. See docs/verification.md.
+#
+# Treat a forward tag as "worth reading", which it is, and for free. Extend
+# both lists; they are meant to be edited.
 
 forward:
   agents:

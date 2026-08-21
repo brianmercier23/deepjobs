@@ -153,9 +153,53 @@ corpus is technology employers; those terms belong to the facilities, CRE and
 corporate-training postings the set exists to tell apart, and none of those
 employers are in this board list yet.
 
-**Not yet verified:** the claim that forward-tagged postings score 65-81 while
-legacy-tagged score 25-40. That needs the scorer, which does not exist yet.
-Prevalence and precision are measurable today; the correlation is not.
+### The tag does not predict the score, and that is the correct result
+
+The working hypothesis was that forward-tagged postings would score 65-81 and
+legacy-tagged ones 25-40. With the scorer in place it was measured directly: 45
+forward-only, 10 legacy-only (all that exist) and 45 untagged postings, sampled
+deterministically from the 942 that pass the gate, scored at temperature 0
+against the same rubric.
+
+| | forward | legacy | untagged |
+|---|---|---|---|
+| n | 45 | 10 | 45 |
+| median | 18 | 28 | 15 |
+| mean | 25.8 | 27.7 | 21.7 |
+| scoring 60+ | 3 | 0 | 2 |
+
+**The hypothesis does not hold.** There is no 65-81 band, and legacy-tagged
+postings score slightly *higher* than forward-tagged ones.
+
+The six sub-scores explain why, and they are the first thing in this repository
+that could:
+
+| dimension (max) | forward | legacy | untagged |
+|---|---|---|---|
+| Location viability (25) | 18.5 | 20.5 | 17.9 |
+| Capability overlap (25) | 9.8 | 12.1 | 7.7 |
+| Domain leverage (15) | 4.0 | 4.0 | 4.6 |
+| **Build latitude (15)** | **7.2** | 6.9 | **5.0** |
+| Seniority fit (10) | 4.8 | 7.4 | 5.4 |
+| Signal quality (10) | 9.4 | 9.8 | 9.3 |
+| sum of the six | 53.6 | 60.7 | 49.9 |
+| total after rubric caps | 25.8 | 27.7 | 21.7 |
+
+The tag moves build latitude by about 2 points of 15 and capability overlap by
+2 of 25 — real, and in the expected direction — and then the rubric's caps
+compress every total toward the same floor, because this corpus is technology
+employers and the rubric is written for an operations candidate. A posting can
+name every modern AI tool and still be a software engineering role the rubric
+rejects on sight.
+
+The legacy column is a second lesson. Its terms (`nuvolo`, `siebel`, `lms
+administration`) mark facilities, CRE and corporate-training postings, and this
+rubric *likes* those, so a legacy tag is not a negative signal about fit. It is
+a signal about the tooling, which is a different question. Ten postings is too
+few to say more.
+
+So the tag is a free "worth reading" filter, and this repository describes it as
+one. It is not a score proxy, and nothing here claims it is.
 
 ## Workday, live
 
@@ -274,5 +318,4 @@ claim a saving.
 
 ## Still to verify
 
-- The ai-forward signal set reproducing its scoring split on a real corpus
 - Following one level of careers-page links, to resolve boards like Fortive's
