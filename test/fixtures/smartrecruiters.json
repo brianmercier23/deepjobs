@@ -1,0 +1,373 @@
+{
+  "offset": 0,
+  "limit": 100,
+  "totalFound": 3,
+  "content": [
+    {
+      "id": "744000144588060",
+      "name": "Community Developer - March of Giants",
+      "uuid": "9136170e-43ef-442e-87b5-ff2314722931",
+      "jobAdId": "be1a897e-8dbf-4822-bc74-3888b3cf904b",
+      "defaultJobAd": false,
+      "refNumber": "REF31808D",
+      "company": {
+        "identifier": "Ubisoft2",
+        "name": "Ubisoft"
+      },
+      "releasedDate": "2026-08-20T15:39:17.124Z",
+      "location": {
+        "city": "Paris",
+        "region": "IDF",
+        "country": "fr",
+        "remote": false,
+        "hybrid": false,
+        "latitude": "48.8575475",
+        "longitude": "2.3513765",
+        "fullLocation": "Paris, IDF, France"
+      },
+      "industry": {
+        "id": "entertainment",
+        "label": "Entertainment"
+      },
+      "department": {
+        "id": "13847731",
+        "label": "Ubisoft"
+      },
+      "function": {
+        "id": "marketing",
+        "label": "Marketing"
+      },
+      "typeOfEmployment": {
+        "id": "permanent",
+        "label": "Full-time"
+      },
+      "experienceLevel": {
+        "id": "mid_senior_level",
+        "label": "Mid-Senior Level"
+      },
+      "customField": [
+        {
+          "fieldId": "56c253c2e4b0cabf01d19d37",
+          "fieldLabel": "Organizational Unit",
+          "valueId": "8c9e34a8-4cfc-4312-a13a-0661a7276a7a",
+          "valueLabel": "CRC Newcastle"
+        },
+        {
+          "fieldId": "56c2539de4b0cabf01d19d36",
+          "fieldLabel": "Recruitment Programs",
+          "valueId": "cb9660da-dde8-48ec-ba09-d33d9bb77edc",
+          "valueLabel": "N/A"
+        },
+        {
+          "fieldId": "5bb3995c6d8bc56bc081b87d",
+          "fieldLabel": "Contract",
+          "valueId": "b5a86fc0-2681-4b3c-98b6-b73a4be23ef1",
+          "valueLabel": "Permanent"
+        },
+        {
+          "fieldId": "68e4ce369c52964c7125078a",
+          "fieldLabel": "Job Family",
+          "valueId": "3248d469-5642-4951-b422-99637d061ac3",
+          "valueLabel": "Marketing"
+        },
+        {
+          "fieldId": "56d1aa7ae4b0a07f777a4ef4",
+          "fieldLabel": "Brands",
+          "valueId": "default",
+          "valueLabel": "Ubisoft"
+        },
+        {
+          "fieldId": "6904811aa8fa2db78e2ee2ed",
+          "fieldLabel": "Job  Function",
+          "valueId": "aeb33a89-5afc-40be-9dfd-b2645881c55e",
+          "valueLabel": "Community Management"
+        },
+        {
+          "fieldId": "691ca2ee342dfb96e5364508",
+          "fieldLabel": "Reference Job",
+          "valueId": "25cb4210-c3c4-49f1-b7a6-ecaa37ca99de",
+          "valueLabel": "Community Management Developer"
+        },
+        {
+          "fieldId": "6a158e3c77b1f5657b57af9d",
+          "fieldLabel": "Management Unit (New)",
+          "valueId": "f0bd3708-c5ff-47b1-9104-b83a1b4071d2",
+          "valueLabel": "UBISOFT"
+        },
+        {
+          "fieldId": "58b7e4d0e4b09a6d37a0cd8b",
+          "fieldLabel": "Department",
+          "valueId": "13847731",
+          "valueLabel": "Ubisoft"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "gb",
+          "valueLabel": "United Kingdom"
+        },
+        {
+          "fieldId": "6904797c56f594d5ed50988d",
+          "fieldLabel": "Work flexibility",
+          "valueId": "ccb10278-8410-4710-b0e7-698fc2195139",
+          "valueLabel": "Office-based"
+        },
+        {
+          "fieldId": "5def94650389ad3cc4be9d17",
+          "fieldLabel": "OU sub location (select when applicable)",
+          "valueId": "ac8ae7ad-70a6-491d-b848-4625c10b9609",
+          "valueLabel": "N/A"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/Ubisoft2/postings/744000144588060",
+      "creator": {
+        "name": "Alex Cheyne"
+      },
+      "language": {
+        "code": "en",
+        "label": "English",
+        "labelNative": "English (US)"
+      }
+    },
+    {
+      "id": "744000144575759",
+      "name": "Community Developer - March of Giants",
+      "uuid": "3e84668c-1762-4c8c-80f1-ae99ff94a7c7",
+      "jobAdId": "3b7d26d5-c017-4402-9419-6dd760d2d9c5",
+      "defaultJobAd": true,
+      "refNumber": "REF31808D",
+      "company": {
+        "identifier": "Ubisoft2",
+        "name": "Ubisoft"
+      },
+      "releasedDate": "2026-08-20T14:44:37.456Z",
+      "location": {
+        "city": "Newcastle upon Tyne",
+        "region": "England",
+        "country": "gb",
+        "remote": false,
+        "hybrid": false,
+        "latitude": "54.978252",
+        "longitude": "-1.61778",
+        "fullLocation": "Newcastle upon Tyne, England, United Kingdom"
+      },
+      "industry": {
+        "id": "entertainment",
+        "label": "Entertainment"
+      },
+      "department": {
+        "id": "13847731",
+        "label": "Ubisoft"
+      },
+      "function": {
+        "id": "marketing",
+        "label": "Marketing"
+      },
+      "typeOfEmployment": {
+        "id": "permanent",
+        "label": "Full-time"
+      },
+      "experienceLevel": {
+        "id": "mid_senior_level",
+        "label": "Mid-Senior Level"
+      },
+      "customField": [
+        {
+          "fieldId": "56c253c2e4b0cabf01d19d37",
+          "fieldLabel": "Organizational Unit",
+          "valueId": "8c9e34a8-4cfc-4312-a13a-0661a7276a7a",
+          "valueLabel": "CRC Newcastle"
+        },
+        {
+          "fieldId": "56c2539de4b0cabf01d19d36",
+          "fieldLabel": "Recruitment Programs",
+          "valueId": "cb9660da-dde8-48ec-ba09-d33d9bb77edc",
+          "valueLabel": "N/A"
+        },
+        {
+          "fieldId": "5bb3995c6d8bc56bc081b87d",
+          "fieldLabel": "Contract",
+          "valueId": "b5a86fc0-2681-4b3c-98b6-b73a4be23ef1",
+          "valueLabel": "Permanent"
+        },
+        {
+          "fieldId": "68e4ce369c52964c7125078a",
+          "fieldLabel": "Job Family",
+          "valueId": "3248d469-5642-4951-b422-99637d061ac3",
+          "valueLabel": "Marketing"
+        },
+        {
+          "fieldId": "56d1aa7ae4b0a07f777a4ef4",
+          "fieldLabel": "Brands",
+          "valueId": "default",
+          "valueLabel": "Ubisoft"
+        },
+        {
+          "fieldId": "6904811aa8fa2db78e2ee2ed",
+          "fieldLabel": "Job  Function",
+          "valueId": "aeb33a89-5afc-40be-9dfd-b2645881c55e",
+          "valueLabel": "Community Management"
+        },
+        {
+          "fieldId": "691ca2ee342dfb96e5364508",
+          "fieldLabel": "Reference Job",
+          "valueId": "25cb4210-c3c4-49f1-b7a6-ecaa37ca99de",
+          "valueLabel": "Community Management Developer"
+        },
+        {
+          "fieldId": "6a158e3c77b1f5657b57af9d",
+          "fieldLabel": "Management Unit (New)",
+          "valueId": "f0bd3708-c5ff-47b1-9104-b83a1b4071d2",
+          "valueLabel": "UBISOFT"
+        },
+        {
+          "fieldId": "58b7e4d0e4b09a6d37a0cd8b",
+          "fieldLabel": "Department",
+          "valueId": "13847731",
+          "valueLabel": "Ubisoft"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "gb",
+          "valueLabel": "United Kingdom"
+        },
+        {
+          "fieldId": "6904797c56f594d5ed50988d",
+          "fieldLabel": "Work flexibility",
+          "valueId": "ccb10278-8410-4710-b0e7-698fc2195139",
+          "valueLabel": "Office-based"
+        },
+        {
+          "fieldId": "5def94650389ad3cc4be9d17",
+          "fieldLabel": "OU sub location (select when applicable)",
+          "valueId": "ac8ae7ad-70a6-491d-b848-4625c10b9609",
+          "valueLabel": "N/A"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/Ubisoft2/postings/744000144575759",
+      "creator": {
+        "name": "Alex Cheyne"
+      },
+      "language": {
+        "code": "en",
+        "label": "English",
+        "labelNative": "English (US)"
+      }
+    },
+    {
+      "id": "744000144570418",
+      "name": "Linux Systems Administrator",
+      "uuid": "4a5c0034-d77b-42a9-a878-501241dc41a0",
+      "jobAdId": "b43975b3-0a9a-45d2-bac9-fd78f4dd6d74",
+      "defaultJobAd": false,
+      "refNumber": "REF31178D",
+      "company": {
+        "identifier": "Ubisoft2",
+        "name": "Ubisoft"
+      },
+      "releasedDate": "2026-08-20T14:20:32.783Z",
+      "location": {
+        "city": "Bucharest",
+        "region": "Bucharest",
+        "country": "ro",
+        "remote": false,
+        "hybrid": false,
+        "latitude": "44.4267674",
+        "longitude": "26.1025384",
+        "fullLocation": "Bucharest, Bucharest, Romania"
+      },
+      "industry": {
+        "id": "computer_games",
+        "label": "Computer Games"
+      },
+      "department": {
+        "id": "13847731",
+        "label": "Ubisoft"
+      },
+      "function": {
+        "id": "information_technology",
+        "label": "Information Technology"
+      },
+      "typeOfEmployment": {
+        "id": "permanent",
+        "label": "Full-time"
+      },
+      "experienceLevel": {
+        "id": "entry_level",
+        "label": "Entry Level"
+      },
+      "customField": [
+        {
+          "fieldId": "56c253c2e4b0cabf01d19d37",
+          "fieldLabel": "Organizational Unit",
+          "valueId": "721c58b3-5e0f-4dca-baba-1c5580c3f39b",
+          "valueLabel": "Ubisoft IT"
+        },
+        {
+          "fieldId": "5bb3995c6d8bc56bc081b87d",
+          "fieldLabel": "Contract",
+          "valueId": "b5a86fc0-2681-4b3c-98b6-b73a4be23ef1",
+          "valueLabel": "Permanent"
+        },
+        {
+          "fieldId": "68e4ce369c52964c7125078a",
+          "fieldLabel": "Job Family",
+          "valueId": "e3c9e4f4-a983-42c1-acfb-15a77c35f610",
+          "valueLabel": "Information & Systems"
+        },
+        {
+          "fieldId": "56d1aa7ae4b0a07f777a4ef4",
+          "fieldLabel": "Brands",
+          "valueId": "default",
+          "valueLabel": "Ubisoft"
+        },
+        {
+          "fieldId": "6904811aa8fa2db78e2ee2ed",
+          "fieldLabel": "Job  Function",
+          "valueId": "2e7438ae-0c0e-4504-9fcd-f01b8b1062bf",
+          "valueLabel": "Infrastructure & Operations"
+        },
+        {
+          "fieldId": "691ca2ee342dfb96e5364508",
+          "fieldLabel": "Reference Job",
+          "valueId": "ddb18ef6-ad25-4bdb-8547-0c6c90c04124",
+          "valueLabel": "Infrastructure & Systems Administrator"
+        },
+        {
+          "fieldId": "58b7e4d0e4b09a6d37a0cd8b",
+          "fieldLabel": "Department",
+          "valueId": "13847731",
+          "valueLabel": "Ubisoft"
+        },
+        {
+          "fieldId": "COUNTRY",
+          "fieldLabel": "Country/Region",
+          "valueId": "ro",
+          "valueLabel": "Romania"
+        },
+        {
+          "fieldId": "6904797c56f594d5ed50988d",
+          "fieldLabel": "Work flexibility",
+          "valueId": "ccb10278-8410-4710-b0e7-698fc2195139",
+          "valueLabel": "Office-based"
+        },
+        {
+          "fieldId": "5def94650389ad3cc4be9d17",
+          "fieldLabel": "OU sub location (select when applicable)",
+          "valueId": "ca20a399-bb63-491c-9d12-ee438870465d",
+          "valueLabel": "Romania"
+        }
+      ],
+      "visibility": "PUBLIC",
+      "ref": "https://api.smartrecruiters.com/v1/companies/Ubisoft2/postings/744000144570418",
+      "language": {
+        "code": "en",
+        "label": "English",
+        "labelNative": "English (US)"
+      }
+    }
+  ]
+}

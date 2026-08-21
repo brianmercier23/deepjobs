@@ -24,8 +24,9 @@ smartrecruiters:
   - slug: Ubisoft2
 
 workable:
+  - slug: blueground
   # Workable 404s an unknown slug, so unlike SmartRecruiters a zero here is
-  # honest: real board, nobody hiring today.
+  # honest: real board, nobody hiring today. veriff is one of those.
   - slug: veriff
 
 workday:

@@ -1,0 +1,152 @@
+{
+  "id": "744000144588060",
+  "name": "Community Developer - March of Giants",
+  "uuid": "9136170e-43ef-442e-87b5-ff2314722931",
+  "jobId": "8adfb50e-49a1-46ea-ba48-507d11be3b47",
+  "jobAdId": "be1a897e-8dbf-4822-bc74-3888b3cf904b",
+  "defaultJobAd": false,
+  "refNumber": "REF31808D",
+  "company": {
+    "name": "Ubisoft",
+    "identifier": "Ubisoft2"
+  },
+  "location": {
+    "city": "Paris",
+    "region": "IDF",
+    "country": "fr",
+    "remote": false,
+    "hybrid": false,
+    "latitude": "48.8575475",
+    "longitude": "2.3513765",
+    "fullLocation": "Paris, IDF, France"
+  },
+  "customField": [
+    {
+      "fieldId": "56c253c2e4b0cabf01d19d37",
+      "fieldLabel": "Organizational Unit",
+      "valueId": "8c9e34a8-4cfc-4312-a13a-0661a7276a7a",
+      "valueLabel": "CRC Newcastle"
+    },
+    {
+      "fieldId": "58b7e4d0e4b09a6d37a0cd8b",
+      "fieldLabel": "Department",
+      "valueId": "13847731",
+      "valueLabel": "Ubisoft"
+    },
+    {
+      "fieldId": "56c2539de4b0cabf01d19d36",
+      "fieldLabel": "Recruitment Programs",
+      "valueId": "cb9660da-dde8-48ec-ba09-d33d9bb77edc",
+      "valueLabel": "N/A"
+    },
+    {
+      "fieldId": "5bb3995c6d8bc56bc081b87d",
+      "fieldLabel": "Contract",
+      "valueId": "b5a86fc0-2681-4b3c-98b6-b73a4be23ef1",
+      "valueLabel": "Permanent"
+    },
+    {
+      "fieldId": "COUNTRY",
+      "fieldLabel": "Country/Region",
+      "valueId": "gb",
+      "valueLabel": "United Kingdom"
+    },
+    {
+      "fieldId": "6904797c56f594d5ed50988d",
+      "fieldLabel": "Work flexibility",
+      "valueId": "ccb10278-8410-4710-b0e7-698fc2195139",
+      "valueLabel": "Office-based"
+    },
+    {
+      "fieldId": "68e4ce369c52964c7125078a",
+      "fieldLabel": "Job Family",
+      "valueId": "3248d469-5642-4951-b422-99637d061ac3",
+      "valueLabel": "Marketing"
+    },
+    {
+      "fieldId": "56d1aa7ae4b0a07f777a4ef4",
+      "fieldLabel": "Brands",
+      "valueId": "default",
+      "valueLabel": "Ubisoft"
+    },
+    {
+      "fieldId": "6904811aa8fa2db78e2ee2ed",
+      "fieldLabel": "Job  Function",
+      "valueId": "aeb33a89-5afc-40be-9dfd-b2645881c55e",
+      "valueLabel": "Community Management"
+    },
+    {
+      "fieldId": "691ca2ee342dfb96e5364508",
+      "fieldLabel": "Reference Job",
+      "valueId": "25cb4210-c3c4-49f1-b7a6-ecaa37ca99de",
+      "valueLabel": "Community Management Developer"
+    },
+    {
+      "fieldId": "6a158e3c77b1f5657b57af9d",
+      "fieldLabel": "Management Unit (New)",
+      "valueId": "f0bd3708-c5ff-47b1-9104-b83a1b4071d2",
+      "valueLabel": "UBISOFT"
+    },
+    {
+      "fieldId": "5def94650389ad3cc4be9d17",
+      "fieldLabel": "OU sub location (select when applicable)",
+      "valueId": "ac8ae7ad-70a6-491d-b848-4625c10b9609",
+      "valueLabel": "N/A"
+    }
+  ],
+  "releasedDate": "2026-08-20T15:39:17.124Z",
+  "creator": {
+    "name": "Alex Cheyne",
+    "avatarUrl": "https://c.smartrecruiters.com/sr-employee-image-prod-aws-dc5/5e2e90ad901c0f5bc9e4a5b0?r=s3-eu-central-1&_1580817337116"
+  },
+  "postingUrl": "https://jobs.smartrecruiters.com/Ubisoft2/744000144588060-community-developer-march-of-giants",
+  "applyUrl": "https://jobs.smartrecruiters.com/Ubisoft2/744000144588060-community-developer-march-of-giants?oga=true",
+  "referralUrl": "https://jobs.smartrecruiters.com/external-referrals/company/Ubisoft2/publication/9136170e-43ef-442e-87b5-ff2314722931?dcr_ci=Ubisoft2",
+  "jobAd": {
+    "sections": {
+      "companyDescription": {
+        "title": "Company Description",
+        "text": "<p>Ubisoft is a global leader in gaming with teams across the world creating original and memorable gaming experiences, from Assassin’s Creed, Rainbow Six to Just Dance and more. We believe diverse perspectives help both players and teams thrive. If you’re passionate about innovation and pushing entertainment boundaries, join our journey and help us create the unknown!</p>"
+      },
+      "jobDescription": {
+        "title": "Job Description",
+        "text": "<p>We are looking for a Community Developer in Paris who will be responsible for establishing and growing our communities around Ubisoft’s games with a proficiency in player communications, game improvements and feedback cycles, and deployment and maintenance of best practices. They will lead the global community strategy on specific brand (March of Giants), create and execute global plans, and work with a distributed international team that is focused on building relationships and earning trust with players around the world, contributing to our global business growth opportunities.</p><p><br>\nThis position will also provide guidance to cross-functional team members, facilitating collaborative planning and executing commitments at high quality standards. As a member of the global community team, this position will be integrated with lead development studios.</p><p><strong>Core duties and responsibilities include the following:</strong></p><ul><li>Develop and execute community strategic plans through a variety of content tactics, which support Production objectives and augment the overall marketing strategy.</li><li>Develop and grow existing communities in alignment with wider business objectives.</li><li>Coordinate communication, activities, and initiatives with multiple global departments for consistent and cohesive messaging.</li><li>Leverage Community Managers, transversal teams, and relevant partner resources to create meaningful content for our players (example: blogs, podcasts, interviews, infographics, &amp; more).</li><li>Act as one of the spokespersons for the assigned brand(s). Coordinate community-centric events including, but not limited to: studio visits from fans, developer dialogues, and tournaments.&#xa0;</li><li>Collaborate with portfolio’s Social Media Manager to define and report on content KPIs to demonstrate success and ROI of community programs and content.</li><li>Support internal &amp; external milestones, such as betas and launches, to ensure KPIs are met and to advocate for the player experience.</li><li>Act as a primary representative for players’ needs within Production and Publishing teams to positively influence development and communications positioning, on behalf of our players and business objectives.</li><li>Shape player feedback cycles and provide insights to Production and Publishing teams to influence game experiences, stimulate player retention, and assist in positioning messaging and marketing beats.</li><li>Collaborate and coordinate with live teams for post-launch communication. Set expectations on applicable situations such as patch content, status, and delivery.</li><li>Manage and produce internal reports on community feedback, activity, &amp; expectations.</li><li>International travel may be required.</li></ul><p>This position will be part of multiple cross-functional projects, working with Community Managers, Marketing, Production, and Video Editor teams, among others.</p>"
+      },
+      "qualifications": {
+        "title": "Qualifications",
+        "text": "<p><strong>WHAT YOU’LL BRING</strong></p><p>Intermediate experience managing online communities and developing strategic plans or programs with demonstrable success in a professional setting. Extensive experience in the gaming industry, with multiple gaming platforms, would be a strong plus<strong>.&#xa0;</strong>Experience in social media marketing or with digital asset creation (video, photo, podcasts, etc.) is also a strong plus.</p><p><strong>Skills and knowledge</strong></p><ul><li>Knowledge or strong interest in March of Giants</li><li>Extensive knowledge of social media platforms (Instagram, Twitter/X, Facebook, TikTok, Discord, etc.) is required.</li><li>Experience working in a demanding Production environment, with multiple deadlines, metrics for success, and stakeholders.</li><li>Strong understanding of building and maintaining the growth of video game communities as well as developing and executing strategic player engagement plans.</li><li>Proven track record of working with various stakeholders to filter and implement player feedback.</li><li>Having worked on a AAA live-title is a strong plus.</li></ul>"
+      },
+      "additionalInformation": {
+        "title": "Additional Information",
+        "text": "<p><strong>Ubisoft's perks</strong></p><p>💰 Profit Sharing, yearly company saving plan. 25 paid time off + 12 additional paid days off. 50% of your transportation pass is paid by the company, lunch vouchers (9€/day), healthcare for you and your family, and lots of Ubisoft additional perks.<br>\n👶 Maternity leaves of 20 weeks, paternity/co-parental leaves of 7 weeks.<br>\n📍 Our office is located in Saint Mandé, (Metro line 1, Saint Mandé station). Gym available in the building.</p><p><strong>Recruitment process</strong></p><p>[30 minutes]: Talent screening call with the Recruiter,<br>\n[60 minutes]: Interview with the manager of the role,<br>\n[30 minutes]: Discussion with the Director</p>"
+      }
+    }
+  },
+  "active": true,
+  "visibility": "PUBLIC",
+  "industry": {
+    "id": "entertainment",
+    "label": "Entertainment"
+  },
+  "function": {
+    "id": "marketing",
+    "label": "Marketing"
+  },
+  "department": {
+    "id": 13847731,
+    "label": "Ubisoft"
+  },
+  "experienceLevel": {
+    "id": "mid_senior_level",
+    "label": "Mid-Senior Level"
+  },
+  "typeOfEmployment": {
+    "id": "permanent",
+    "label": "Full-time"
+  },
+  "language": {
+    "code": "en",
+    "label": "English",
+    "labelNative": "English (US)"
+  }
+}

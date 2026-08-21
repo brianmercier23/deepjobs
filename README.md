@@ -80,6 +80,11 @@ Board APIs are not uniform and the differences are not documented anywhere.
   none can be guessed. A wrong site path returns 422 even when the tenant is
   real. They are recoverable from a careers-page redirect, which is what
   `deepjobs discover --url` does.
+- **SmartRecruiters' list endpoint has no link a human can open.** Its only URL
+  field points back at the API; `postingUrl` and `applyUrl` exist on the detail
+  response only. Since descriptions are capped at 60 detail calls per company,
+  a naive port scores postings nobody can open. The public URL is derivable,
+  and a bare id resolves without the title slug.
 - **Greenhouse returns entity-escaped HTML inside a JSON string**, sometimes
   escaped more than once. `&amp;lt;p&amp;gt;` needs up to three unescape passes before
   it parses as markup at all.
