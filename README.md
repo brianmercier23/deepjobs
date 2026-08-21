@@ -12,6 +12,13 @@ one worth applying to, and you only find that out in the body too.
 tags them for free, throws out what was never viable, and spends money on an
 LLM only for the small remainder.
 
+## Measured
+
+47 boards, 0 failures, 2,929 postings, 21.2 seconds, and a description body on
+99.97% of them. Against the private implementation this replaces, the hash sets
+match exactly: 2,897 unique postings each, zero present in one and not the
+other. Details and method in [docs/verification.md](docs/verification.md).
+
 ## Status
 
 Under construction. The scaffold, the tracked signal set and the public/private
@@ -85,6 +92,10 @@ Board APIs are not uniform and the differences are not documented anywhere.
   response only. Since descriptions are capped at 60 detail calls per company,
   a naive port scores postings nobody can open. The public URL is derivable,
   and a bare id resolves without the title slug.
+- **The same board can serve two revisions of one posting seconds apart.** Two
+  back-to-back fetches returned 6,636 and then 5,018 characters for the same
+  job. Description length is not a stable identity signal, which is one reason
+  the dedupe hash is built from company, title and location instead.
 - **Greenhouse returns entity-escaped HTML inside a JSON string**, sometimes
   escaped more than once. `&amp;lt;p&amp;gt;` needs up to three unescape passes before
   it parses as markup at all.
