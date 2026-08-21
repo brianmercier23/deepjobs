@@ -1,0 +1,41 @@
+# The free stage. Everything here runs on regex over the description body and
+# costs nothing, which is the point: it is what stops you paying an LLM to read
+# 2,000 postings that were never viable.
+#
+# `deepjobs init` copies this to config/gates.yaml, which is gitignored.
+
+location:
+  # Used in reject messages, so it reads like a sentence.
+  home_metro_label: "the Denver metro"
+  # Onsite roles are kept only in these metros. Remote is judged separately.
+  onsite_metros_allowed:
+    - denver
+    - boulder
+    - aurora
+    - lakewood
+  # A country list that misses an entry degrades to a LOCATION_UNKNOWN flag,
+  # never to a wrong reject. Add to it; do not rely on it being complete.
+  allow_remote: true
+
+compensation:
+  # Below this, reject. A posting with no stated salary is never rejected on
+  # comp; it is flagged and moves on.
+  soft_floor: 95000
+  currency: USD
+
+titles:
+  # Word-boundary matched, so "intern" cannot kill "Internal Audit Manager".
+  kill:
+    - intern
+    - internship
+    - unpaid
+    - volunteer
+    - commission only
+    - part-time
+  # Seniority bands that are noise for this persona.
+  kill_seniority:
+    - vp
+    - vice president
+    - chief
+    - c-level
+    - director of engineering

@@ -1,0 +1,37 @@
+# Every slug below was verified live against the board API on 2026-08-20.
+# `deepjobs discover <name>` verifies a slug before you add it, which matters
+# more than it sounds: see the smartrecruiters note.
+#
+# parent: records an acquisition. The posting shows up under the acquirer's
+# board, so without it you look for a company that no longer posts anywhere.
+
+greenhouse:
+  - slug: stripe
+  - slug: figma
+
+lever:
+  - slug: palantir
+
+ashby:
+  - slug: ramp
+  - slug: linear
+
+smartrecruiters:
+  # SmartRecruiters answers HTTP 200 with an empty list for ANY slug, real or
+  # invented. A zero here proves nothing. "Ubisoft" looks right and returns
+  # nothing; "Ubisoft2" is the real board and returns hundreds.
+  - slug: BoschGroup
+  - slug: Ubisoft2
+
+workable:
+  # Workable 404s an unknown slug, so unlike SmartRecruiters a zero here is
+  # honest: real board, nobody hiring today.
+  - slug: veriff
+
+workday:
+  # Workday needs three parts and none of them can be guessed. A wrong site
+  # path returns 422 even when the tenant is real. `deepjobs discover --url`
+  # reads all three out of a careers-page redirect.
+  - tenant: jll
+    host: wd1
+    site: jllcareers

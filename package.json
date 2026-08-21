@@ -1,0 +1,51 @@
+{
+  "name": "deepjobs",
+  "version": "0.1.0",
+  "description": "A job search engine that reads the whole description, not the title. Crawls ATS boards direct, tags AI-forward roles for free, scores what survives against your own rubric.",
+  "keywords": [
+    "jobs",
+    "job-search",
+    "ats",
+    "greenhouse",
+    "lever",
+    "ashby",
+    "workday",
+    "workable",
+    "smartrecruiters",
+    "cli"
+  ],
+  "license": "MIT",
+  "author": "Brian Mercier",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brianmercier23/deepjobs.git"
+  },
+  "homepage": "https://github.com/brianmercier23/deepjobs#readme",
+  "type": "module",
+  "bin": {
+    "deepjobs": "./bin/deepjobs.js"
+  },
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "examples/",
+    "signals/",
+    "skills/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "test": "node --test",
+    "demo": "node bin/deepjobs.js run --limit 20 --no-score"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.0",
+    "yaml": "^2.8.1"
+  }
+}

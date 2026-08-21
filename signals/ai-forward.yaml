@@ -1,0 +1,68 @@
+# The one keyword file that ships tracked and working, because it is not
+# personal and it is the whole differentiator.
+#
+# Applied by regex at ingest, word-boundary matched, before anything is paid
+# for. Costs nothing and runs on every posting.
+#
+# Why it exists: across a scored corpus, postings naming the tools in `forward`
+# landed in a 65-81 band, while postings naming the tools in `legacy` landed in
+# a 25-40 band. That split is detectable for free. Extend both lists; they are
+# meant to be edited.
+
+forward:
+  agents:
+    - claude
+    - claude code
+    - agent sdk
+    - agentic
+    - agentic workflow
+    - ai agent
+    - autonomous agent
+    - tool use
+    - mcp
+    - model context protocol
+  retrieval:
+    - rag
+    - retrieval augmented generation
+    - vector search
+    - vector database
+    - embeddings
+    - semantic search
+  platform:
+    - langchain
+    - llamaindex
+    - openai api
+    - anthropic
+    - fine-tuning
+    - prompt engineering
+    - llm
+    - large language model
+  practice:
+    - ai adoption
+    - ai enablement
+    - internal tooling
+    - process automation
+    - workflow automation
+
+legacy:
+  # Not a reject list. A posting can name these and still be worth reading.
+  # It is a counterweight: heavy legacy vocabulary with no forward terms is a
+  # strong predictor of a role that is administering software, not building.
+  training:
+    - addie
+    - articulate
+    - storyline
+    - cornerstone
+    - scorm
+    - lms administration
+  enterprise:
+    - conga
+    - x-author
+    - nuvolo
+    - meddic
+    - siebel
+    - lotus notes
+  ops:
+    - data entry
+    - ticket triage
+    - mail merge

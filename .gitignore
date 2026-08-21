@@ -1,0 +1,19 @@
+# Your rubric, your board list, your gates. Personal by definition.
+# `deepjobs init` writes these from examples/.
+config/*
+!config/.gitkeep
+
+# Local crawl database.
+data/*
+!data/.gitkeep
+
+# ANTHROPIC_API_KEY and any contact string.
+.env
+.env.*
+!.env.example
+
+node_modules/
+npm-debug.log*
+*.tsbuildinfo
+.DS_Store
+Thumbs.db
