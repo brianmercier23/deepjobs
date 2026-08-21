@@ -65,6 +65,25 @@ node scripts/record-fixtures.js   # refresh the recorded board responses
 Collector parity needs a board list and the reference implementation, neither
 of which is in this repository.
 
+## Gate parity
+
+Both gates were run over one shared dump of the same 2,929 postings, so the
+comparison isolates gate logic from collection and from any difference in what
+the two crawls happened to see.
+
+| | value |
+|---|---|
+| postings gated | 2,929 |
+| passed, this implementation | 872 (29.8%) |
+| passed, reference implementation | 872 |
+| **decisions that differ** | **0** |
+| **flag sets that differ** | **0** |
+| reject reasons that differ | 77, all cosmetic |
+
+The 77 are a deliberate improvement rather than a divergence: the reference
+implementation reports the compiled pattern (`title contains 'director\s+of'`)
+where this one reports the term a human wrote (`title contains 'director of'`).
+
 ## Workday, live
 
 Measured 2026-08-20 against `jll.wd1` / `jllcareers`.
@@ -89,7 +108,7 @@ Tenant resolution from a careers page:
 
 ## Still to verify
 
-- Gate parity, and the measured gain from body-based remote detection
+- The measured gain from body-based remote detection
 - Scorer diff against a known-good scored set
 - The ai-forward signal set reproducing its scoring split on a real corpus
 - Following one level of careers-page links, to resolve boards like Fortive's
