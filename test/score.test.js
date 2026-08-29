@@ -9,10 +9,12 @@ import {
   MAX_DESCRIPTION_CHARS,
   MODEL,
   PRICING,
+  FatalScoreError,
   ScoreError,
   Usage,
   cleanRationale,
   createClient,
+  isFatalApiError,
   formatPosting,
   loadRubric,
   parseVerdict,
@@ -328,4 +330,95 @@ test('a score round-trips through the database with every dimension intact', () 
   assert.equal(row.dimensions.signalQuality, 4);
   // Columns nothing reads are columns that quietly stop being written.
   assert.equal(row.dimensions.capabilityOverlap, 20);
+});
+
+// --------------------------------------------------------------------------
+// Fatal API conditions
+//
+// A spent credit balance is not a property of the posting being scored, so
+// retrying it per posting is wasted money-less effort: 800 postings times
+// three attempts is 2,400 calls that cannot succeed, and the rate limit is
+// gone by the end of it.
+// --------------------------------------------------------------------------
+
+function apiError(message, status) {
+  const err = new Error(message);
+  if (status !== undefined) err.status = status;
+  return err;
+}
+
+test('an auth failure is fatal, a rate limit is not', () => {
+  assert.equal(isFatalApiError(apiError('invalid x-api-key', 401)), true);
+  assert.equal(isFatalApiError(apiError('forbidden', 403)), true);
+  assert.equal(isFatalApiError(apiError('payment required', 402)), true);
+  assert.equal(isFatalApiError(apiError('rate limited', 429)), false);
+  assert.equal(isFatalApiError(apiError('overloaded', 529)), false);
+  assert.equal(isFatalApiError(apiError('bad gateway', 502)), false);
+  assert.equal(isFatalApiError(null), false);
+});
+
+test('an exhausted balance is recognised by its message, not its status', () => {
+  // This is the one that stranded 244 postings. It arrives as a 400, which is
+  // otherwise an ordinary retryable bad request.
+  const err = apiError('Your credit balance is too low to access the Anthropic API', 400);
+  assert.equal(isFatalApiError(err), true);
+});
+
+test('scoreOne does not retry a fatal error', async () => {
+  const client = fakeClient(apiError('invalid x-api-key', 401));
+  await assert.rejects(
+    () => scoreOne(makePosting({ company: 'Acme', title: 'Analyst', description: 'x' }), {
+      rubric: RUBRIC, client,
+    }),
+    (err) => err instanceof FatalScoreError,
+  );
+  // One attempt, not RETRIES + 1.
+  assert.equal(client.calls.length, 1);
+});
+
+test('scoreOne still retries an ordinary failure', async () => {
+  const client = fakeClient([apiError('overloaded', 529), apiError('overloaded', 529), VERDICT]);
+  const score = await scoreOne(
+    makePosting({ company: 'Acme', title: 'Analyst', description: 'x' }),
+    { rubric: RUBRIC, client },
+  );
+  assert.equal(score.overall, 78);
+  assert.equal(client.calls.length, 3);
+});
+
+test('scoreAll stops the batch on a fatal error and reports it', async () => {
+  const batch = Array.from({ length: 40 }, (_, i) => makePosting({
+    company: `Co ${i}`, title: 'Analyst', description: 'x',
+  }));
+  const client = fakeClient(apiError('credit balance is too low', 400));
+  const { scores, aborted } = await scoreAll(batch, {
+    rubric: RUBRIC, client, concurrency: 4,
+  });
+
+  assert.equal(scores.length, 0);
+  assert.ok(aborted instanceof FatalScoreError);
+  // Four workers can each be mid-call when the first one fails, so the bound is
+  // the pool size, not one. What matters is that it is nowhere near 40.
+  assert.ok(client.calls.length <= 4, `expected <= 4 calls, got ${client.calls.length}`);
+});
+
+test('a fatal error keeps the scores that already landed', async () => {
+  const batch = Array.from({ length: 6 }, (_, i) => makePosting({
+    company: `Co ${i}`, title: 'Analyst', description: 'x',
+  }));
+  // Serial, so the ordering is deterministic: two succeed, then the balance goes.
+  const client = fakeClient([VERDICT, VERDICT, apiError('credit balance is too low', 400)]);
+  const { scores, aborted } = await scoreAll(batch, {
+    rubric: RUBRIC, client, concurrency: 1,
+  });
+
+  assert.equal(scores.length, 2);
+  assert.ok(aborted instanceof FatalScoreError);
+});
+
+test('scoreAll returns aborted null on a clean run', async () => {
+  const batch = [makePosting({ company: 'Acme', title: 'Analyst', description: 'x' })];
+  const { scores, aborted } = await scoreAll(batch, { rubric: RUBRIC, client: fakeClient(VERDICT) });
+  assert.equal(scores.length, 1);
+  assert.equal(aborted, null);
 });

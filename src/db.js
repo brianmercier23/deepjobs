@@ -235,6 +235,46 @@ export function getPosting(db, hash) {
   return row ? rowToPosting(row) : null;
 }
 
+/**
+ * Postings that passed the gate and were never scored.
+ *
+ * These exist because the pipeline records the gate result before it spends
+ * any money, which is the right order — a run that dies during scoring still
+ * keeps everything it learned for free. The cost is that the posting is now on
+ * file, so `splitNew` will not offer it again on the next run and it would sit
+ * there unscored forever. This query is how it gets found and finished.
+ */
+export function unscoredPassed(db, { limit = null } = {}) {
+  const rows = db.prepare(`
+    SELECT p.*, g.flags AS gate_flags
+    FROM posting p
+    JOIN gate_result g ON g.hash = p.hash
+    LEFT JOIN score s  ON s.hash = p.hash
+    WHERE g.result = 'pass' AND s.hash IS NULL
+    ORDER BY p.first_seen DESC
+    ${limit ? 'LIMIT ?' : ''}
+  `).all(...(limit ? [limit] : []));
+
+  return rows.map((row) => ({
+    ...rowToPosting(row),
+    // The gate's flags travel with the posting: the scorer is given them, and
+    // recordScore merges them back in. A recovered posting that lost its
+    // HYBRID flag would score as though the gate had never run.
+    flags: fromJson(row.gate_flags),
+  }));
+}
+
+/** How many gate-passed postings are still unscored. Cheap enough to call on every run. */
+export function unscoredPassedCount(db) {
+  const row = db.prepare(`
+    SELECT COUNT(*) AS n
+    FROM gate_result g
+    LEFT JOIN score s ON s.hash = g.hash
+    WHERE g.result = 'pass' AND s.hash IS NULL
+  `).get();
+  return row?.n ?? 0;
+}
+
 function rowToPosting(row) {
   return {
     hash: row.hash,

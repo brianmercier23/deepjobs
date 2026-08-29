@@ -20,7 +20,7 @@ import {
 } from './config.js';
 import {
   findByHashPrefix, openDb, recordGate, recordPostings, recordScore, report, setVerdict,
-  splitNew, stats, touchSeen, upsertBoard,
+  splitNew, stats, touchSeen, unscoredPassed, unscoredPassedCount, upsertBoard,
 } from './db.js';
 
 export const USAGE = `deepjobs ${VERSION}
@@ -41,6 +41,9 @@ Run options
                      database, so already-seen postings are skipped)
   --limit <n>        stop after n new postings
   --no-score         skip the LLM stage entirely (free)
+  --rescore-unscored also score postings that passed the gate on an earlier run
+                     but were never scored, usually because that run lost its
+                     API key or its credit balance partway through
   --db <path>        database file (default data/seen.db)
   --config <dir>     config directory (default config/), for a second search
 
@@ -66,7 +69,7 @@ the environment or in a .env file. Everything else runs for nothing.
 
 const KNOWN = new Set(['init', 'setup', 'run', 'discover', 'report', 'mark', 'stats']);
 
-const FLAGS = new Set(['dry-run', 'no-score', 'ai-forward', 'all', 'json', 'force']);
+const FLAGS = new Set(['dry-run', 'no-score', 'rescore-unscored', 'ai-forward', 'all', 'json', 'force']);
 const VALUED = new Set(['limit', 'min', 'db', 'url', 'config', 'why']);
 
 /** A small parser, because argv shapes are exactly where a dependency is not worth it. */
@@ -216,11 +219,22 @@ async function cmdRun(opts, io, deps = {}) {
     }
   }
 
+  // Postings that passed the gate on an earlier run and were never scored,
+  // because that run lost its key or its credit balance partway through. They
+  // are already on file, so splitNew will never offer them again; without this
+  // they stay unscored forever.
+  const stranded = (opts['rescore-unscored'] && !dryRun) ? unscoredPassed(db) : [];
+  if (stranded.length) {
+    io.err(`recovering ${plural(stranded.length, 'unscored posting')} from earlier runs\n`);
+  }
+  const toScore = [...stranded, ...passed];
+
   let scored = [];
   let usage = null;
-  if (scoring && passed.length) {
-    io.err(`scoring ${plural(passed.length, 'posting')}\n`);
-    const result = await scoreAll(passed, {
+  let aborted = null;
+  if (scoring && toScore.length) {
+    io.err(`scoring ${plural(toScore.length, 'posting')}\n`);
+    const result = await scoreAll(toScore, {
       rubric,
       client,
       onProgress: ({ done, total, usage: u }) => {
@@ -232,6 +246,9 @@ async function cmdRun(opts, io, deps = {}) {
     });
     scored = result.scores;
     usage = result.usage;
+    aborted = result.aborted;
+    // Write what did land before reporting the abort. A run that scored 300 of
+    // 800 before the balance went should keep the 300.
     if (!dryRun) for (const score of scored) recordScore(db, score.hash, score);
   }
 
@@ -252,9 +269,28 @@ async function cmdRun(opts, io, deps = {}) {
   if (usage) io.out(`${usage.summary()}\n`);
   if (dryRun) io.out('dry run: nothing was written\n');
 
+  // Scoring stopped on a condition that would have failed for every remaining
+  // posting. Say so, and say what it costs, because the funnel line above just
+  // reports a small number and looks like a quiet run.
+  if (aborted) {
+    io.out(`\nSCORING STOPPED: ${aborted.message}\n`);
+    io.out('Anything already scored was saved.\n');
+  }
+
+  // The standing count, whatever caused it. This is the line whose absence let
+  // 244 postings sit unscored and unnoticed after a run that lost its balance.
+  if (!dryRun) {
+    const pending = unscoredPassedCount(db);
+    if (pending) {
+      io.out(`\n${plural(pending, 'posting')} passed the gate but ${pending === 1 ? 'is' : 'are'} unscored.\n`);
+      io.out('They will not come back as new. Recover them with:\n');
+      io.out('  deepjobs run --rescore-unscored\n');
+    }
+  }
+
   const top = scored.filter((s) => s.overall >= 60).sort((a, b) => b.overall - a.overall);
   if (top.length) {
-    const byHash = new Map(passed.map((p) => [p.hash, p]));
+    const byHash = new Map(toScore.map((p) => [p.hash, p]));
     io.out(`\n${plural(top.length, 'posting')} scored 60 or better:\n`);
     for (const score of top.slice(0, 10)) {
       const p = byHash.get(score.hash);

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   openDb, splitNew, recordPostings, touchSeen, getPosting, markWritten,
   recordGate, recordScore, setVerdict, getVerdict, upsertBoard, boards,
-  report, stats, scoreBand, SCHEMA_VERSION,
+  report, stats, scoreBand, unscoredPassed, unscoredPassedCount, SCHEMA_VERSION,
 } from '../src/db.js';
 import { makePosting } from '../src/lib/posting.js';
 
@@ -230,4 +230,68 @@ test('scoreBand covers every range including nothing', () => {
   assert.equal(scoreBand(30), 'Weak');
   assert.equal(scoreBand(29), 'Poor');
   assert.equal(scoreBand(null), null);
+});
+
+// --------------------------------------------------------------------------
+// Recovering postings stranded between the gate and the scorer
+// --------------------------------------------------------------------------
+
+test('a gate-passed posting with no score is findable afterwards', () => {
+  const d = db();
+  const passed = posting({ title: 'Automation Analyst' });
+  const scored = posting({ title: 'Platform Analyst' });
+  const rejected = posting({ title: 'Warehouse Picker' });
+  recordPostings(d, [passed, scored, rejected]);
+
+  recordGate(d, passed.hash, { result: 'pass', flags: ['HYBRID'] });
+  recordGate(d, scored.hash, { result: 'pass', flags: [] });
+  recordGate(d, rejected.hash, { result: 'reject', reason: 'not remote' });
+  recordScore(d, scored.hash, { overall: 71, model: 'test' });
+
+  const pending = unscoredPassed(d);
+  assert.equal(pending.length, 1);
+  assert.equal(pending[0].hash, passed.hash);
+  // The gate's flags have to survive the round trip, or a recovered posting
+  // scores as though the gate never ran.
+  assert.deepEqual(pending[0].flags, ['HYBRID']);
+  assert.equal(unscoredPassedCount(d), 1);
+});
+
+test('a rejected posting is never offered for rescoring', () => {
+  const d = db();
+  const p = posting();
+  recordPostings(d, [p]);
+  recordGate(d, p.hash, { result: 'reject', reason: 'onsite' });
+  assert.equal(unscoredPassed(d).length, 0);
+  assert.equal(unscoredPassedCount(d), 0);
+});
+
+test('scoring a recovered posting clears it from the queue', () => {
+  const d = db();
+  const p = posting();
+  recordPostings(d, [p]);
+  recordGate(d, p.hash, { result: 'pass', flags: [] });
+  assert.equal(unscoredPassedCount(d), 1);
+
+  recordScore(d, p.hash, { overall: 64, model: 'test' });
+  assert.equal(unscoredPassedCount(d), 0);
+});
+
+test('the recovery queue honours a limit', () => {
+  const d = db();
+  const batch = Array.from({ length: 5 }, (_, i) => posting({ title: `Analyst ${i}` }));
+  recordPostings(d, batch);
+  for (const p of batch) recordGate(d, p.hash, { result: 'pass', flags: [] });
+
+  assert.equal(unscoredPassedCount(d), 5);
+  assert.equal(unscoredPassed(d, { limit: 2 }).length, 2);
+});
+
+test('a posting on file but never gated is not a recovery candidate', () => {
+  // splitNew will not offer it again either, but that is a crawl-side concern.
+  // The recovery queue is specifically what the gate passed and the scorer missed.
+  const d = db();
+  const p = posting();
+  recordPostings(d, [p]);
+  assert.equal(unscoredPassedCount(d), 0);
 });

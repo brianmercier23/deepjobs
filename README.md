@@ -171,6 +171,42 @@ before it writes it.
 `signals/ai-forward.yaml` ships tracked on purpose. It is the one keyword input
 that is not personal, and it is the part most worth extending.
 
+## When scoring stops partway
+
+Scoring is the only stage that costs money, so it is also the only one that can
+fail for reasons that have nothing to do with the postings: a key that was
+rotated, a key that was never set on this machine, a credit balance that ran
+out at three in the morning.
+
+Two things follow from that, and both are deliberate.
+
+**A fatal condition stops the batch instead of being retried per posting.** A
+spent balance will fail identically for every remaining posting, so retrying it
+across eight hundred of them produces two and a half thousand calls that cannot
+succeed and finishes with an empty rate limit and nothing scored. `401`, `403`
+and `402` are treated as fatal, and so is the exhausted-balance error, which
+arrives as an ordinary-looking `400` and has to be recognised by its message.
+`429` and `5xx` stay retryable, because those do come good.
+
+**Postings that passed the gate but were never scored are recoverable.** The
+pipeline records the gate result before it spends anything, which is the right
+order — a run that dies during scoring still keeps everything it learned for
+free. The side effect is that those postings are now on file, so `splitNew`
+will not offer them as new again. Every run therefore ends by counting them:
+
+```
+244 postings passed the gate but are unscored.
+They will not come back as new. Recover them with:
+  deepjobs run --rescore-unscored
+```
+
+`--rescore-unscored` puts them at the front of the scoring queue, ahead of
+whatever today's crawl found. Their gate flags travel with them, so a recovered
+posting is scored with the same context it would have had at the time.
+
+Scores that landed before the failure are always written. A run that scored 300
+of 800 before the balance went keeps the 300.
+
 ## Notes that cost time to rediscover
 
 Board APIs are not uniform and the differences are not documented anywhere.

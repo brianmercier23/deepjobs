@@ -71,6 +71,44 @@ export class ScoreError extends Error {
 }
 
 /**
+ * A condition that will fail identically for every remaining posting: a bad
+ * key, a revoked key, an exhausted credit balance.
+ *
+ * These are worth their own class because the retry loop is exactly wrong for
+ * them. Retrying a spent balance three times per posting across eight hundred
+ * postings produces two and a half thousand identical failures, empties the
+ * rate limit, and still scores nothing. The batch stops on the first one.
+ */
+export class FatalScoreError extends ScoreError {
+  constructor(message) {
+    super(message);
+    this.name = 'FatalScoreError';
+  }
+}
+
+/**
+ * Decide whether an API error is per-posting or account-wide.
+ *
+ * The Anthropic SDK puts an HTTP status on the error. 401 and 403 are the key
+ * itself; 400 is normally a bad request, but an exhausted balance also arrives
+ * as a 400 whose body names the credit balance, so that text is checked too.
+ * 429 and 5xx are deliberately absent: those are transient and retry is the
+ * right response.
+ */
+export function isFatalApiError(err) {
+  if (!err) return false;
+  const status = err.status ?? err.statusCode ?? null;
+  if (status === 401 || status === 403) return true;
+
+  const text = `${err.message ?? ''} ${JSON.stringify(err.error ?? '')}`.toLowerCase();
+  if (text.includes('credit balance') || text.includes('insufficient_quota')
+      || text.includes('billing') || text.includes('payment required')) {
+    return true;
+  }
+  return status === 402;
+}
+
+/**
  * The output contract, appended to whatever rubric the user wrote.
  *
  * A user's rubric describes what they want out of a career. Asking them to
@@ -416,6 +454,10 @@ export async function scoreOne(posting, { rubric, client, usage = null, flags = 
       };
     } catch (err) {
       last = err;
+      // A spent balance or a dead key will not come good on the next attempt.
+      if (isFatalApiError(err)) {
+        throw new FatalScoreError(`scoring stopped: ${err.message ?? err}`);
+      }
       if (attempt < RETRIES) await sleep(RETRY_BACKOFF_MS * (attempt + 1));
     }
   }
@@ -448,6 +490,7 @@ export async function scoreAll(postings, {
 
   let next = 0;
   let done = 0;
+  let aborted = null;
 
   const worker = async () => {
     for (;;) {
@@ -464,6 +507,14 @@ export async function scoreAll(postings, {
           flags: flagsFor ? flagsFor(posting) : [],
         });
       } catch (err) {
+        if (err instanceof FatalScoreError) {
+          // Stop every worker, not just this one. Whatever is left unscored is
+          // recoverable from the database afterwards; burning the rest of the
+          // batch against a dead key is not.
+          aborted = err;
+          next = batch.length;
+          return;
+        }
         usage.failures += 1;
         if (onError) onError(err, posting);
       }
@@ -478,5 +529,7 @@ export async function scoreAll(postings, {
   );
   await Promise.all(workers);
 
-  return { scores: scores.filter(Boolean), usage };
+  // `aborted` is returned rather than thrown. The scores that did land are
+  // real and worth writing; the caller decides how loudly to complain.
+  return { scores: scores.filter(Boolean), usage, aborted };
 }
