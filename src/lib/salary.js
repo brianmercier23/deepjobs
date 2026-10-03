@@ -6,10 +6,13 @@
 
 const HOURS_PER_YEAR = 2080;
 
-const MONEY = String.raw`\$?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*([kKmM])?`;
+// The cents group after a comma-grouped number is load-bearing: Workday writes
+// "$ 68,000.00 - $80,000.00", and without it the match restarts inside the
+// number and reports a minimum of $0 or $250.
+const MONEY = String.raw`\$?\s*(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)\s*([kKmM])?`;
 const SEPARATOR = String.raw`\s*(?:-|–|—|to)\s*`;
 const RANGE_RE = new RegExp(MONEY + SEPARATOR + MONEY);
-const SINGLE_RE = /\$\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*([kK])?/;
+const SINGLE_RE = /\$\s*(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)\s*([kK])?/;
 const HOURLY_HINT = /(?:per\s*hour|hourly|\/\s*hr\b|\/\s*hour|an\s*hour)/i;
 
 function toAmount(num, suffix) {

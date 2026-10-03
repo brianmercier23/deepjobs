@@ -160,6 +160,9 @@ test('parseSalary reads ranges in every separator boards use', () => {
     ['$120,000—$150,000', [120_000, 150_000]],
     ['120k-150k', [120_000, 150_000]],
     ['$150,000', [150_000, 150_000]],
+    // Workday's format: cents on both ends, a space after the first $.
+    ['The compensation for the position is: $ 68,000.00 - $80,000.00', [68_000, 80_000]],
+    ['$85,000.00', [85_000, 85_000]],
   ];
   for (const [input, want] of cases) {
     assert.deepEqual(parseSalary(input), want, `input: ${input}`);

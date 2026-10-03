@@ -74,7 +74,9 @@ const PART_TIME_RE = /\bpart[- ]time\b/i;
 const RELOCATION_RE = /\bmust relocate\b|\brelocation (?:is )?required\b|\brequired to relocate\b|\bwilling(?:ness)? to relocate is (?:a )?requirement\b/i;
 const COMMISSION_ONLY_RE = /\bcommission[- ]only\b|\b100%\s*commission\b|\buncapped commission[- ]only\b/i;
 // The lookahead is load-bearing: "unpaid time off" is a benefit, not a warning.
-const UNPAID_RE = /\bunpaid\b(?!\s*(?:time off|leave))/i;
+// "time away" is Cushman & Wakefield's boilerplate ("paid and unpaid time away
+// from work"); without it every one of their postings was rejected as unpaid.
+const UNPAID_RE = /\bunpaid\b(?!\s*(?:time off|time away|leave))/i;
 const SALARY_CTX_RE = /(?:salary|compensation|pay|base|range|rate|hiring range|pay range)[^.\n]{0,80}?\$\s?\d[\d,.]*\s*(?:k\b)?[^.\n]{0,60}/i;
 
 const US_STATE_CODES = ['al', 'ak', 'az', 'ar', 'ca', 'co', 'ct', 'de', 'fl', 'ga', 'hi', 'id', 'il',

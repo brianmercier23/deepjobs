@@ -46,6 +46,10 @@ test('"unpaid time off" is a benefit, not a warning', () => {
   const benefits = posting({ description: `Unlimited unpaid time off is available. ${'A'.repeat(300)}` });
   assert.equal(gate.check(benefits).passed, true);
 
+  // Cushman & Wakefield's wording, which once rejected every posting they had.
+  const timeAway = posting({ description: `Benefits include paid and unpaid time away from work. ${'A'.repeat(300)}` });
+  assert.equal(gate.check(timeAway).passed, true);
+
   const real = posting({ description: `This is an unpaid position. ${'A'.repeat(300)}` });
   assert.equal(gate.check(real).passed, false);
   assert.match(gate.check(real).reason, /unpaid/);
