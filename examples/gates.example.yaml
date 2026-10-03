@@ -88,3 +88,15 @@ staffing_agencies:
     - Insight Global
     - Randstad
     - Kforce
+
+# Not part of the free stage: read by the scorer after the model answers.
+# Maps a flag to the highest total a posting carrying it may keep. Your rubric
+# states its caps in prose and names a flag for each; models reliably raise the
+# flag and then sometimes report the uncapped number anyway. Listing the flag
+# here makes the cap hold. Matched case-insensitively against gate and model
+# flags; the lowest matching cap wins, and a `capped_<flag>_from_<n>` flag keeps
+# the model's own number on record. Empty means the model's total stands.
+score_caps: {}
+#  onsite: 20
+#  no_benefits: 35
+#  swe_role: 30

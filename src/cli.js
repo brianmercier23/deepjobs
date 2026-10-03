@@ -12,7 +12,7 @@ import { VERSION } from './index.js';
 import { fetchAll, boardLabel } from './collectors/index.js';
 import { applyGate } from './gate.js';
 import { loadSignals, tagAll } from './tag.js';
-import { loadRubric, createClient, scoreAll, ScoreError } from './score.js';
+import { loadRubric, createClient, scoreAll, normalizeCaps, ScoreError } from './score.js';
 import { discover, companiesYamlLine } from './discover.js';
 import {
   ConfigError, PACKAGE_ROOT, configPath, initConfig, installSkill, loadCompanies, loadEnv,
@@ -164,8 +164,10 @@ async function cmdRun(opts, io, deps = {}) {
   // at the end of a two-minute crawl for a missing file is a bad trade.
   let rubric = null;
   let client = null;
+  let caps = null;
   if (scoring) {
     rubric = loadRubric(configPath('rubric.md', configDir));
+    caps = normalizeCaps(gates.score_caps);
     client = await createClient();
   }
 
@@ -237,6 +239,7 @@ async function cmdRun(opts, io, deps = {}) {
     const result = await scoreAll(toScore, {
       rubric,
       client,
+      caps,
       onProgress: ({ done, total, usage: u }) => {
         if (done % 25 === 0 || done === total) {
           io.err(`  ${done}/${total}  ~$${u.costUsd.toFixed(3)}\n`);

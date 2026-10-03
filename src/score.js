@@ -15,9 +15,12 @@ import { readFileSync } from 'node:fs';
 
 export const MODEL = 'claude-haiku-4-5';
 
-// Measured: 4,500 chars covers the summary, the responsibilities and most of
-// the requirements. What gets cut is the EEO statement and the benefits list.
-export const MAX_DESCRIPTION_CHARS = 4500;
+// Was 4,500 on the theory that only EEO text and benefits sit past it. Wrong:
+// on 2026-10-02 all 50 top-scored postings ran longer than that, and one
+// "5+ years of professional experience" requirement began at char 4,523, so
+// the scorer never saw it. Requirements sections come late. 12,000 covers the
+// longest of those 50 (~9,900) with room, for roughly 30% more input tokens.
+export const MAX_DESCRIPTION_CHARS = 12000;
 
 // Six sub-scores, a total, a sentence and a few flags. 400 is roughly double
 // what a well-behaved response needs, which is the margin that keeps a slightly
@@ -324,6 +327,56 @@ export function parseVerdict(text) {
   return verdict;
 }
 
+/**
+ * Check a `score_caps` map from gates.yaml: flag name -> highest total allowed.
+ *
+ * Returns a map keyed by lowercased flag so matching ignores case, since gate
+ * flags are upper case and the model's are lower.
+ */
+export function normalizeCaps(raw) {
+  if (raw == null) return {};
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new ScoreError('score_caps must map flag names to numbers');
+  }
+  const caps = {};
+  for (const [flag, value] of Object.entries(raw)) {
+    const max = toInt(value);
+    if (max === null || max < 0 || max > 100) {
+      throw new ScoreError(`score_caps.${flag} must be a whole number from 0 to 100, got ${JSON.stringify(value)}`);
+    }
+    caps[String(flag).trim().toLowerCase()] = max;
+  }
+  return caps;
+}
+
+/**
+ * Hold the total to the lowest cap among the posting's flags.
+ *
+ * A rubric can state "cap at 30 when X" and the model will name X in its flags
+ * and then report 72 anyway: measured 2026-10-02, three of fifty postings
+ * carried the right flag with the cap unapplied. Labelling is the part models
+ * do reliably, so the model labels and this enforces.
+ *
+ * The model's own number is not thrown away. A `capped_<flag>_from_<n>` flag
+ * records it, which keeps the gap between what the model said and what was
+ * stored visible in the report rather than silently rewritten.
+ */
+export function applyCaps(verdict, caps) {
+  if (!caps || !Object.keys(caps).length) return verdict;
+  let binding = null;
+  for (const flag of verdict.flags ?? []) {
+    const max = caps[String(flag).toLowerCase()];
+    if (max === undefined) continue;
+    if (!binding || max < binding.max) binding = { flag: String(flag).toLowerCase(), max };
+  }
+  if (!binding || verdict.overall <= binding.max) return verdict;
+  return {
+    ...verdict,
+    overall: binding.max,
+    flags: [...verdict.flags, `capped_${binding.flag}_from_${verdict.overall}`],
+  };
+}
+
 
 /** What one call cost, in the shape `db.recordScore` stores. */
 export function callCost(usage = {}) {
@@ -412,7 +465,7 @@ const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
  * contract comes to about 2,100. The breakpoint costs nothing and pays off for
  * the users who write long rubrics; it is not a saving to advertise.
  */
-export async function scoreOne(posting, { rubric, client, usage = null, flags = [] } = {}) {
+export async function scoreOne(posting, { rubric, client, usage = null, flags = [], caps = null } = {}) {
   if (!rubric) throw new ScoreError('scoreOne needs a rubric');
   if (!client) throw new ScoreError('scoreOne needs a client');
 
@@ -442,12 +495,16 @@ export async function scoreOne(posting, { rubric, client, usage = null, flags = 
 
       const verdict = parseVerdict(text);
       const spend = callCost(response.usage);
+      // Keep the deterministic gate flags and append the model's, then cap on
+      // the combined set so a gate flag can carry a cap too.
+      const capped = applyCaps({
+        ...verdict,
+        flags: [...new Set([...(posting.flags ?? []), ...flags, ...verdict.flags])],
+      }, caps);
       return {
         hash: posting.hash,
         model: MODEL,
-        ...verdict,
-        // Keep the deterministic gate flags and append the model's.
-        flags: [...new Set([...(posting.flags ?? []), ...flags, ...verdict.flags])],
+        ...capped,
         // Per-posting, not just per-run. A single line in a report showing what
         // one verdict cost is the thing that stops someone from wondering.
         ...spend,
@@ -480,6 +537,7 @@ export async function scoreAll(postings, {
   client,
   limit = null,
   concurrency = 4,
+  caps = null,
   flagsFor = null,
   onProgress = null,
   onError = null,
@@ -504,6 +562,7 @@ export async function scoreAll(postings, {
           rubric,
           client,
           usage,
+          caps,
           flags: flagsFor ? flagsFor(posting) : [],
         });
       } catch (err) {

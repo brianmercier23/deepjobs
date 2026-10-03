@@ -12,6 +12,8 @@ import {
   FatalScoreError,
   ScoreError,
   Usage,
+  applyCaps,
+  normalizeCaps,
   cleanRationale,
   createClient,
   isFatalApiError,
@@ -109,7 +111,8 @@ test('gate flags reach the model, deduplicated', () => {
 });
 
 test('a long description is cut at a line break and says that it was cut', () => {
-  const body = `${'word '.repeat(2000)}\n${'tail '.repeat(200)}`;
+  // Sized off the constant so the fixture stays longer than the cut.
+  const body = `${'word '.repeat(Math.ceil(MAX_DESCRIPTION_CHARS / 5))}\n${'tail '.repeat(200)}`;
   const text = formatPosting(posting({ description: body }));
   assert.ok(text.includes('[description truncated]'));
   const desc = text.split('Description:\n')[1];
@@ -421,4 +424,45 @@ test('scoreAll returns aborted null on a clean run', async () => {
   const { scores, aborted } = await scoreAll(batch, { rubric: RUBRIC, client: fakeClient(VERDICT) });
   assert.equal(scores.length, 1);
   assert.equal(aborted, null);
+});
+
+// --------------------------------------------------------------------------
+// caps
+
+test('a flag with a cap holds the total down and records what the model said', () => {
+  const v = applyCaps({ overall: 92, flags: ['remote', 'tech_role'] }, { tech_role: 30 });
+  assert.equal(v.overall, 30);
+  assert.deepEqual(v.flags, ['remote', 'tech_role', 'capped_tech_role_from_92']);
+});
+
+test('the lowest matching cap wins and matching ignores case', () => {
+  const caps = normalizeCaps({ swe_role: 30, ONSITE: 20 });
+  const v = applyCaps({ overall: 80, flags: ['SWE_ROLE', 'onsite'] }, caps);
+  assert.equal(v.overall, 20);
+  assert.ok(v.flags.includes('capped_onsite_from_80'));
+});
+
+test('a total already under the cap, or with no capped flag, is left alone', () => {
+  const under = { overall: 25, flags: ['tech_role'] };
+  assert.equal(applyCaps(under, { tech_role: 30 }), under);
+  const none = { overall: 90, flags: ['remote'] };
+  assert.equal(applyCaps(none, { tech_role: 30 }), none);
+  assert.equal(applyCaps(none, {}), none);
+  assert.equal(applyCaps(none, null), none);
+});
+
+test('score_caps rejects anything that is not a whole number from 0 to 100', () => {
+  assert.deepEqual(normalizeCaps(undefined), {});
+  assert.deepEqual(normalizeCaps({}), {});
+  assert.throws(() => normalizeCaps(['onsite']), ScoreError);
+  assert.throws(() => normalizeCaps({ onsite: 'low' }), ScoreError);
+  assert.throws(() => normalizeCaps({ onsite: 120 }), ScoreError);
+});
+
+test('scoreOne applies caps to gate flags as well as the model flags', async () => {
+  const p = posting();
+  p.flags = ['REMOTE_CONTRADICTED'];
+  const score = await scoreOne(p, { rubric: RUBRIC, client: fakeClient(VERDICT), caps: { remote_contradicted: 20 } });
+  assert.equal(score.overall, 20);
+  assert.ok(score.flags.includes('capped_remote_contradicted_from_78'));
 });
