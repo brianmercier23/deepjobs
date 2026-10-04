@@ -83,6 +83,15 @@ CREATE TABLE IF NOT EXISTS application (
   my_why     TEXT
 );
 
+-- One row per posting pushed to a notify sink, so a lead is sent once and a
+-- failed send is retried next run. sink = 'baseline' marks rows recorded
+-- without sending, when notify is first switched on over an old database.
+CREATE TABLE IF NOT EXISTS notify_log (
+  hash        TEXT PRIMARY KEY REFERENCES posting(hash) ON DELETE CASCADE,
+  notified_at TEXT NOT NULL,
+  sink        TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_posting_written ON posting(written_at);
 CREATE INDEX IF NOT EXISTS idx_posting_forward ON posting(ai_forward);
 CREATE INDEX IF NOT EXISTS idx_score_overall   ON score(overall);
@@ -497,6 +506,44 @@ export function report(db, { minScore = 0, aiForwardOnly = false, unwrittenOnly 
     // across corpora far larger than anything a job search produces.
     shortHash: row.hash.slice(0, 8),
   }));
+}
+
+/**
+ * Scored postings not yet pushed anywhere, best first.
+ *
+ * A posting you already gave a verdict is not a lead any more, and one the gate
+ * rejected only has a score if an older run scored it before the gate changed;
+ * neither belongs in a queue meant for the morning's new work.
+ */
+export function pendingLeads(db, { minScore = 60 } = {}) {
+  const rows = db.prepare(`
+    SELECT p.*, s.overall, s.rationale, s.flags AS score_flags
+    FROM posting p
+    JOIN score s ON s.hash = p.hash
+    LEFT JOIN gate_result g ON g.hash = p.hash
+    LEFT JOIN application a ON a.hash = p.hash
+    LEFT JOIN notify_log n ON n.hash = p.hash
+    WHERE s.overall >= ?
+      AND (g.result IS NULL OR g.result = 'pass')
+      AND a.my_verdict IS NULL
+      AND n.hash IS NULL
+    ORDER BY s.overall DESC, p.first_seen DESC
+  `).all(minScore);
+  return rows.map((row) => ({
+    ...rowToPosting(row),
+    overall: row.overall,
+    band: scoreBand(row.overall),
+    rationale: row.rationale,
+    scoreFlags: fromJson(row.score_flags),
+    shortHash: row.hash.slice(0, 8),
+  }));
+}
+
+export function recordNotified(db, hash, sink) {
+  db.prepare(`
+    INSERT INTO notify_log (hash, notified_at, sink) VALUES (?, ?, ?)
+    ON CONFLICT(hash) DO UPDATE SET notified_at = excluded.notified_at, sink = excluded.sink
+  `).run(hash, nowIso(), sink);
 }
 
 export function stats(db) {

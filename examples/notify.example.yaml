@@ -1,0 +1,50 @@
+# deepjobs notify: send each new lead somewhere you already look, once.
+#
+# Copy to config/notify.yaml. Run `deepjobs notify --dry-run` to see the exact
+# requests, then `deepjobs notify --baseline` once so the postings already in
+# your database are not all sent at once. After that, `deepjobs run && deepjobs
+# notify` on a schedule sends only what is new.
+#
+# Template values, usable in url, headers and body:
+#   {{company}} {{title}} {{location}} {{url}} {{score}} {{band}}
+#   {{rationale}} {{flags}} {{salary}} {{remote}} {{posted}} {{first_seen}}
+#   {{source}} {{id}} {{today}} {{today+N}}  (a date N days out)
+#   ${NAME}  an environment variable, or a line in .env. Keep tokens there,
+#            never in this file.
+#
+# The body is a YAML object. It is filled in and sent as JSON, so quotes and
+# newlines in a job title cannot break it. A body that is a plain string is
+# sent as-is, for sinks that want text.
+
+min_score: 60      # send postings that scored at or above this
+max_per_run: 25    # the rest wait for the next run
+
+# --- ntfy: a push notification to your phone, no account needed --------------
+# Sent as JSON rather than ntfy's header form: job titles are full of en dashes
+# and accented names, and HTTP headers cannot carry them.
+webhook:
+  url: https://ntfy.sh/
+  body:
+    topic: ${NTFY_TOPIC}
+    title: "{{score}} {{company}}: {{title}}"
+    message: "{{salary}} | {{location}} | {{remote}}\n{{rationale}}"
+    click: "{{url}}"
+    tags: [briefcase]
+
+# --- Slack or Discord incoming webhook ---------------------------------------
+# webhook:
+#   url: ${SLACK_WEBHOOK_URL}
+#   body:
+#     text: "*{{score}}* <{{url}}|{{company}} - {{title}}>\n{{salary}} | {{location}}\n{{rationale}}"
+#
+# For Discord, the field is `content` instead of `text`.
+
+# --- A task in your own tracker (this one is a self-hosted task API) ---------
+# webhook:
+#   url: https://tasks.example.com/api/tasks
+#   headers:
+#     Authorization: "Bearer ${TASKS_TOKEN}"
+#   body:
+#     title: "Job lead {{score}}: {{company}} - {{title}}"
+#     due_date: "{{today+2}}"
+#     notes: "{{url}}\n{{salary}} | {{location}} | {{remote}} | posted {{posted}}\n{{rationale}}\ndeepjobs id {{id}}"

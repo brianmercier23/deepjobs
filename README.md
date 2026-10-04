@@ -102,6 +102,22 @@ Then tell it when it was wrong:
 node bin/deepjobs.js mark 36f16792 no --why "remote in the title, three days onsite in the body"
 ```
 
+To have new leads come to you instead of reading a report, copy
+[`examples/notify.example.yaml`](examples/notify.example.yaml) to
+`config/notify.yaml` and point it at a webhook: an ntfy push to your phone, a
+Slack or Discord channel, or a task in your own tracker. Each posting above
+`min_score` is sent once, as one request you shape in YAML.
+
+```bash
+node bin/deepjobs.js notify --dry-run    # see the exact requests
+node bin/deepjobs.js notify --baseline   # once: don't resend what you've seen
+node bin/deepjobs.js run && node bin/deepjobs.js notify
+```
+
+A failed send stops the batch and is retried next run, and a posting's text
+can never expand a `${VARIABLE}` from your environment, so a hostile job title
+cannot mail your API key to the webhook.
+
 To run it every morning, copy
 [`examples/daily.yml.example`](examples/daily.yml.example) into
 `.github/workflows/`. Read its header first: it explains why the database has

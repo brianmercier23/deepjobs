@@ -14,12 +14,13 @@ import { applyGate } from './gate.js';
 import { loadSignals, tagAll } from './tag.js';
 import { loadRubric, createClient, scoreAll, normalizeCaps, ScoreError } from './score.js';
 import { discover, companiesYamlLine } from './discover.js';
+import { normalizeNotify, buildRequest, sendLeads } from './notify.js';
 import {
   ConfigError, PACKAGE_ROOT, configPath, initConfig, installSkill, loadCompanies, loadEnv,
-  loadGates,
+  loadGates, loadNotify,
 } from './config.js';
 import {
-  findByHashPrefix, openDb, recordGate, recordPostings, recordScore, report, setVerdict,
+  findByHashPrefix, openDb, pendingLeads, recordGate, recordNotified, recordPostings, recordScore, report, setVerdict,
   splitNew, stats, touchSeen, unscoredPassed, unscoredPassedCount, upsertBoard,
 } from './db.js';
 
@@ -34,6 +35,7 @@ Usage
   deepjobs discover <name|--url>      find a company's board slug
   deepjobs report [options]           list what scored well
   deepjobs mark <id> yes|no|maybe     record what you thought of one
+  deepjobs notify [options]           send new leads to a webhook, once each
   deepjobs stats                      what is in the database
 
 Run options
@@ -61,15 +63,22 @@ Mark options
   --why "<text>"     why you thought so. This is the part worth writing down:
                      the score is the model's opinion, this is yours.
 
+Notify options     (reads config/notify.yaml; see examples/notify.example.yaml)
+  --min <n>          override min_score from the config
+  --dry-run          print the requests, send nothing, record nothing
+  --baseline         record every current lead as sent without sending, so
+                     switching notify on over an old database does not flood
+                     the sink with postings you have already seen
+
 The id is the short hash \`report\` prints. Any unambiguous prefix works.
 
 Scoring is the only stage that costs money, and it needs ANTHROPIC_API_KEY in
 the environment or in a .env file. Everything else runs for nothing.
 `;
 
-const KNOWN = new Set(['init', 'setup', 'run', 'discover', 'report', 'mark', 'stats']);
+const KNOWN = new Set(['init', 'setup', 'run', 'discover', 'report', 'mark', 'stats', 'notify']);
 
-const FLAGS = new Set(['dry-run', 'no-score', 'rescore-unscored', 'ai-forward', 'all', 'json', 'force']);
+const FLAGS = new Set(['dry-run', 'no-score', 'rescore-unscored', 'ai-forward', 'all', 'json', 'force', 'baseline']);
 const VALUED = new Set(['limit', 'min', 'db', 'url', 'config', 'why']);
 
 /** A small parser, because argv shapes are exactly where a dependency is not worth it. */
@@ -423,6 +432,59 @@ function cmdReport(opts, io) {
 }
 
 // --------------------------------------------------------------------------
+// notify
+
+async function cmdNotify(opts, io, deps = {}) {
+  loadEnv(deps.envFile ?? '.env');
+  const config = normalizeNotify(loadNotify(configPath('notify.yaml', opts.config ?? 'config')));
+  const minScore = integer(opts.min, 'min') ?? config.minScore;
+  const db = openDb(opts.db ?? 'data/seen.db');
+  const leads = pendingLeads(db, { minScore });
+
+  if (!leads.length) {
+    io.err(`no new leads at or above ${minScore}\n`);
+    return 0;
+  }
+
+  if (opts.baseline) {
+    for (const lead of leads) recordNotified(db, lead.hash, 'baseline');
+    io.out(`recorded ${plural(leads.length, 'lead')} as already seen; the next notify sends only what is new\n`);
+    return 0;
+  }
+
+  const batch = leads.slice(0, config.maxPerRun);
+  const held = leads.length - batch.length;
+
+  if (opts['dry-run']) {
+    for (const lead of batch) {
+      const req = buildRequest(lead, config);
+      // Header values are left out: they are where the tokens live, and a dry
+      // run gets pasted into issues and chat.
+      io.out(`${req.method} ${req.url}\n  headers: ${Object.keys(req.headers).join(', ') || '(none)'}\n`);
+      if (req.body) io.out(`  ${req.body}\n`);
+      io.out('\n');
+    }
+    io.err(`dry run: ${plural(batch.length, 'lead')} would be sent${held ? `, ${held} held for the next run` : ''}\n`);
+    return 0;
+  }
+
+  const { sent, error } = await sendLeads(batch, config, {
+    ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
+    onSent: (lead) => {
+      recordNotified(db, lead.hash, 'webhook');
+      io.out(`sent  ${String(lead.overall).padStart(3)}  ${lead.company} - ${lead.title}\n`);
+    },
+  });
+  if (error) {
+    io.err(`deepjobs: notify stopped after ${plural(sent, 'lead')}: ${error}\n`);
+    io.err('nothing after that was recorded, so the next run retries it\n');
+    return 1;
+  }
+  if (held) io.err(`${held} more held for the next run (max_per_run is ${config.maxPerRun})\n`);
+  return 0;
+}
+
+// --------------------------------------------------------------------------
 // stats
 
 function cmdStats(opts, io) {
@@ -474,6 +536,7 @@ export async function main(argv, io = {
       case 'report': return cmdReport(opts, io);
       case 'mark': return cmdMark(opts, positional, io);
       case 'stats': return cmdStats(opts, io);
+      case 'notify': return await cmdNotify(opts, io, deps);
       case 'setup': return cmdSetup(io);
       default: return 2;
     }

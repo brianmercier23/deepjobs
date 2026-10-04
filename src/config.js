@@ -92,6 +92,15 @@ export function loadGates(path = configPath('gates.yaml')) {
   return readYaml(path, 'gate config');
 }
 
+// Not written by `init`: notify is opt-in, and a sink nobody configured would
+// only fail. The error says where the example is instead.
+export function loadNotify(path = configPath('notify.yaml')) {
+  if (!existsSync(path)) {
+    throw new ConfigError(`notify config not found: ${path}. Copy examples/notify.example.yaml there and fill in the webhook.`);
+  }
+  return readYaml(path, 'notify config');
+}
+
 /**
  * Flatten the companies file into the target shape the collectors take.
  *
