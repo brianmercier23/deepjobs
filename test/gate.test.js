@@ -276,3 +276,85 @@ test('reasonBucket collapses per-posting detail into countable categories', () =
   assert.equal(reasonBucket('unpaid role'), 'unpaid role');
   assert.equal(reasonBucket(null), 'unknown');
 });
+
+// --------------------------------------------------------------------------
+// remote, but only in some states
+
+// The example config's home state is Colorado.
+function remotePosting(overrides = {}) {
+  return posting({ location: 'Roseville, CA', remote: true, ...overrides });
+}
+
+test('a remote posting that lists hiring states without home is flagged, not rejected', () => {
+  // The footer JLL's Workday template writes. A model reading this body
+  // scored location 25 of 25.
+  const p = remotePosting({
+    description: `Platform administration.\n\nLocation:\n\nRemote –Austin, TX, Charlotte, NC, Harrisburg, PA, Richmond, VA, Roseville, CA, Sacramento, CA, Tallahassee, FL\n\n${'A'.repeat(300)}`,
+  });
+  const r = gate.check(p);
+  assert.equal(r.passed, true);
+  assert.ok(r.flags.includes(FLAGS.REMOTE_STATE_LIMITED));
+});
+
+test('a single listed city is a limit too', () => {
+  const r = gate.check(remotePosting({ location: 'Chicago, IL', description: `Remote –Chicago, IL\n${'A'.repeat(300)}` }));
+  assert.ok(r.flags.includes(FLAGS.REMOTE_STATE_LIMITED));
+});
+
+test('a list that names the home state is not flagged', () => {
+  const r = gate.check(remotePosting({ description: `Remote – Austin, TX, Denver, CO\n${'A'.repeat(300)}` }));
+  assert.ok(!r.flags.includes(FLAGS.REMOTE_STATE_LIMITED));
+});
+
+test('a remote posting with no state list is not flagged', () => {
+  const r = gate.check(remotePosting({ location: 'Remote, USA', description: `Fully remote anywhere in the US.\n${'A'.repeat(300)}` }));
+  assert.ok(!r.flags.includes(FLAGS.REMOTE_STATE_LIMITED));
+});
+
+test('structured locations count when there are two or more', () => {
+  // Colliers' shape: no list in the body, the states are only on the board.
+  const colliers = remotePosting({
+    location: 'Georgia, United States of America',
+    locations: ['Georgia, United States of America', 'Ontario, Canada', 'Michigan, United States of America', 'Florida, United States of America'],
+  });
+  assert.ok(gate.check(colliers).flags.includes(FLAGS.REMOTE_STATE_LIMITED));
+
+  // One structured location on a remote posting is usually the payroll
+  // office, so on its own it says nothing.
+  const one = remotePosting({ location: 'Dallas, TX', locations: ['Dallas, TX'] });
+  assert.ok(!gate.check(one).flags.includes(FLAGS.REMOTE_STATE_LIMITED));
+
+  // An entry that cannot be placed means the list is not a limit.
+  const open = remotePosting({ locations: ['Dallas, TX', 'United States of America'] });
+  assert.ok(!gate.check(open).flags.includes(FLAGS.REMOTE_STATE_LIMITED));
+
+  const withHome = remotePosting({ locations: ['Dallas, TX', 'Boulder, CO'] });
+  assert.ok(!gate.check(withHome).flags.includes(FLAGS.REMOTE_STATE_LIMITED));
+});
+
+test('an onsite posting is never state-limited, whatever its body lists', () => {
+  const p = posting({ location: 'Denver, CO', remote: false, description: `Remote –Chicago, IL\n${'A'.repeat(300)}` });
+  assert.ok(!gate.check(p).flags.includes(FLAGS.REMOTE_STATE_LIMITED));
+});
+
+test('no home state configured means no state check', () => {
+  const homeless = new Gate({ ...CFG, location: { ...CFG.location, home_state: null, home_state_code: null } });
+  const r = homeless.check(remotePosting({ description: `Remote –Chicago, IL\n${'A'.repeat(300)}` }));
+  assert.ok(!r.flags.includes(FLAGS.REMOTE_STATE_LIMITED));
+});
+
+test('home_state alone is enough, without the code', () => {
+  const byName = new Gate({ ...CFG, location: { ...CFG.location, home_state: 'colorado', home_state_code: null } });
+  assert.ok(byName.check(remotePosting({ description: `Remote –Chicago, IL\n${'A'.repeat(300)}` })).flags.includes(FLAGS.REMOTE_STATE_LIMITED));
+});
+
+test('reject_state_limited_remote turns the flag into a rejection', () => {
+  const strict = new Gate({
+    ...CFG,
+    location: { ...CFG.location, reject_state_limited_remote: true },
+  });
+  const r = strict.check(remotePosting({ description: `Remote –Chicago, IL, New York, NY\n${'A'.repeat(300)}` }));
+  assert.equal(r.passed, false);
+  assert.equal(r.reason, 'remote only in listed states, not CO: IL, NY');
+  assert.equal(reasonBucket(r.reason), 'remote only in listed states');
+});

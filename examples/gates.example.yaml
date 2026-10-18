@@ -49,6 +49,14 @@ location:
   # own metro is still a job you might want.
   reject_contradicted_remote: false
 
+  # A remote posting that names the states it hires in, without home_state,
+  # is flagged REMOTE_STATE_LIMITED. Read from the board's structured
+  # locations (two or more) and from body lines like "Remote – Austin, TX,
+  # Chicago, IL". Runs whenever home_state is set. The cap in score_caps below
+  # keeps these out of notify while leaving them in the report; set this true
+  # to reject them outright instead.
+  reject_state_limited_remote: false
+
 compensation:
   # Flags below this, does not reject. A posting stating no salary is never
   # rejected on comp; most postings state none at all.
@@ -95,8 +103,10 @@ staffing_agencies:
 # flag and then sometimes report the uncapped number anyway. Listing the flag
 # here makes the cap hold. Matched case-insensitively against gate and model
 # flags; the lowest matching cap wins, and a `capped_<flag>_from_<n>` flag keeps
-# the model's own number on record. Empty means the model's total stands.
-score_caps: {}
+# the model's own number on record. With no entries the model's total stands.
+score_caps:
+  # A gate flag, so it needs no rubric prose. Below 60, the default notify line.
+  remote_state_limited: 40
 #  onsite: 20
 #  no_benefits: 35
 #  swe_role: 30

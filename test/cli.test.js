@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { main, parseArgs, USAGE } from '../src/cli.js';
-import { findByHashPrefix, getVerdict, openDb } from '../src/db.js';
+import { findByHashPrefix, getPosting, getVerdict, openDb, recordGate, recordPostings, recordScore } from '../src/db.js';
+import { makePosting } from '../src/lib/posting.js';
 import {
   CONFIG_FILES, ConfigError, initConfig, installSkill, loadCompanies, loadEnv, loadGates,
 } from '../src/config.js';
@@ -420,4 +421,44 @@ test('mark refuses a verdict it cannot record and says what it wanted', async ()
   const io2 = capture();
   assert.equal(await main(['mark', '--db', db], io2), 1);
   assert.match(io2.stderr(), /usage: deepjobs mark/);
+});
+
+// --------------------------------------------------------------------------
+// regate
+
+test('regate applies a new gate flag and its cap to postings already scored', async () => {
+  const { configDir, db } = scratchConfig();
+  // The example config is Colorado and caps remote_state_limited at 40; this
+  // posting lists Illinois only.
+
+  const d = openDb(db);
+  const p = makePosting({
+    source: 'workday:jll/jllcareers', company: 'JLL', title: 'PDS Operations Analyst',
+    location: 'Chicago, IL', remote: true, url: 'https://x.co/1',
+    description: `Location:\n\nRemote –Chicago, IL\n\n${'A'.repeat(400)}`,
+  });
+  recordPostings(d, [p]);
+  // Gated and scored before the flag existed.
+  recordGate(d, p.hash, { result: 'pass', flags: ['REMOTE'] });
+  recordScore(d, p.hash, { overall: 78, flags: ['REMOTE', 'ops_fit'] });
+
+  const dry = capture();
+  assert.equal(await main(['regate', '--dry-run', '--config', configDir, '--db', db], dry), 0);
+  assert.match(dry.stdout(), / 78 -> {2}40 {2}JLL - PDS Operations Analyst/);
+  assert.equal(d.prepare('SELECT overall FROM score WHERE hash = ?').get(p.hash).overall, 78, 'dry run writes nothing');
+
+  const io = capture();
+  assert.equal(await main(['regate', '--config', configDir, '--db', db], io), 0);
+  assert.match(io.stderr(), /1 posting re-gated/);
+  assert.match(io.stderr(), /0 now rejected, 0 now passing, 1 with new flags/);
+  const score = d.prepare('SELECT overall, flags FROM score WHERE hash = ?').get(p.hash);
+  assert.equal(score.overall, 40);
+  assert.deepEqual(JSON.parse(score.flags), ['REMOTE', 'ops_fit', 'REMOTE_STATE_LIMITED', 'NO_COMP_DISCLOSED', 'capped_remote_state_limited_from_78']);
+  assert.ok(JSON.parse(d.prepare('SELECT flags FROM gate_result WHERE hash = ?').get(p.hash).flags).includes('REMOTE_STATE_LIMITED'));
+  assert.ok(getPosting(d, p.hash), 'the posting itself is untouched');
+
+  // Idempotent: a second pass finds nothing to change.
+  const again = capture();
+  await main(['regate', '--config', configDir, '--db', db], again);
+  assert.match(again.stderr(), /0 scores updated/);
 });

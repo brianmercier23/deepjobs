@@ -10,6 +10,7 @@
 // seen again.
 
 import { parseSalary } from './lib/salary.js';
+import { STATE_CODES, parseStateList, remoteStatesInBody, stateCode } from './lib/states.js';
 
 // Flags are emitted, never rejections. They are notes for a human.
 export const FLAGS = {
@@ -27,6 +28,9 @@ export const FLAGS = {
   REMOTE_CONTRADICTED: 'REMOTE_CONTRADICTED',
   // The posting says remote and then the body restricts where you may live.
   REMOTE_GEO_LIMITED: 'REMOTE_GEO_LIMITED',
+  // The posting says remote and then names the states it hires in, and the
+  // reader's home state is not one of them.
+  REMOTE_STATE_LIMITED: 'REMOTE_STATE_LIMITED',
 };
 
 /**
@@ -79,18 +83,8 @@ const COMMISSION_ONLY_RE = /\bcommission[- ]only\b|\b100%\s*commission\b|\buncap
 const UNPAID_RE = /\bunpaid\b(?!\s*(?:time off|time away|leave))/i;
 const SALARY_CTX_RE = /(?:salary|compensation|pay|base|range|rate|hiring range|pay range)[^.\n]{0,80}?\$\s?\d[\d,.]*\s*(?:k\b)?[^.\n]{0,60}/i;
 
-const US_STATE_CODES = ['al', 'ak', 'az', 'ar', 'ca', 'co', 'ct', 'de', 'fl', 'ga', 'hi', 'id', 'il',
-  'in', 'ia', 'ks', 'ky', 'la', 'me', 'md', 'ma', 'mi', 'mn', 'ms', 'mo', 'mt',
-  'ne', 'nv', 'nh', 'nj', 'nm', 'ny', 'nc', 'nd', 'oh', 'ok', 'or', 'pa', 'ri',
-  'sc', 'sd', 'tn', 'tx', 'ut', 'vt', 'va', 'wa', 'wv', 'wi', 'wy', 'dc'];
-
-const US_STATE_NAMES = 'alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|'
-  + 'florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|'
-  + 'louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|'
-  + 'missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|'
-  + 'new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|'
-  + 'rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|'
-  + 'virginia|washington|west virginia|wisconsin|wyoming';
+const US_STATE_CODES = Object.values(STATE_CODES);
+const US_STATE_NAMES = Object.keys(STATE_CODES).join('|');
 
 // Metros that job ads name without a state, so "New York City Office" and
 // "San Francisco HQ" still read as US-eligible.
@@ -159,6 +153,43 @@ const BROAD_GEO_WORDS = new Set([
   'onsite', 'office', 'or', 'and', 'any', 'all', 'other', 'tbd', 'na',
 ]);
 
+/**
+ * The US states a remote posting says it hires in, or null if it names none.
+ *
+ * Two sources, unioned. A structured list counts only at two or more entries:
+ * a lone primary location on a remote posting is usually the payroll office,
+ * not a limit. Every entry must be placeable, as a state or as a known foreign
+ * location; one entry reading "Remote" or "United States" means the list is
+ * not a limit after all. The body's "Remote – City, ST, ..." lines count
+ * whatever their length, because an employer wrote those on purpose.
+ */
+export function listedStates(posting) {
+  const found = new Set();
+  let any = false;
+
+  const entries = posting.locations ?? [];
+  if (entries.length >= 2) {
+    const fromEntries = [];
+    let placeable = true;
+    for (const entry of entries) {
+      const states = parseStateList(entry);
+      if (states) fromEntries.push(...states);
+      else if (!(FOREIGN_RE.test(entry) && !looksUS(entry))) { placeable = false; break; }
+    }
+    if (placeable && fromEntries.length) {
+      any = true;
+      for (const s of fromEntries) found.add(s);
+    }
+  }
+
+  const fromBody = remoteStatesInBody(posting.description);
+  if (fromBody) {
+    any = true;
+    for (const s of fromBody) found.add(s);
+  }
+  return any ? [...found] : null;
+}
+
 function looksUS(location) {
   return Boolean(location) && US_HINT_RE.test(location);
 }
@@ -193,6 +224,7 @@ export class Gate {
     // Everything about where home is comes from config. A reject reason that
     // names a city has to name the reader's city, not the author's.
     this.homeMetroLabel = loc.home_metro_label ?? 'your home metro';
+    this.homeStateCode = stateCode(loc.home_state_code) ?? stateCode(loc.home_state);
     this.homeStateRe = loc.home_state
       ? new RegExp(`\\b${String(loc.home_state).toLowerCase()}\\b${loc.home_state_code ? `|,\\s*${loc.home_state_code}\\b` : ''}`, 'i')
       : null;
@@ -205,6 +237,10 @@ export class Gate {
     // metro is still a job you might want.
     this.checkRemoteClaim = loc.check_remote_claim_against_body ?? true;
     this.rejectContradictedRemote = loc.reject_contradicted_remote ?? false;
+    // Same split: the state-list check runs whenever a home state is set, and
+    // rejecting on it is opt-in. The default is a flag that a `score_caps`
+    // entry holds below the notify line, so the posting stays in the report.
+    this.rejectStateLimitedRemote = loc.reject_state_limited_remote ?? false;
 
     this.minAnnual = comp.min_annual ?? null;
     this.softFloor = comp.soft_floor ?? 0;
@@ -241,6 +277,17 @@ export class Gate {
       }
       flags.push(FLAGS.REMOTE);
       if (HYBRID_RE.test(location)) flags.push(FLAGS.HYBRID);
+
+      if (this.homeStateCode) {
+        const states = listedStates(posting);
+        if (states && !states.includes(this.homeStateCode)) {
+          flags.push(FLAGS.REMOTE_STATE_LIMITED);
+          if (this.rejectStateLimitedRemote) {
+            const list = states.map((s) => s.toUpperCase()).join(', ');
+            return { ok: false, reason: `remote only in listed states, not ${this.homeStateCode.toUpperCase()}: ${list}`, flags };
+          }
+        }
+      }
 
       // The improvement over filtering on structured metadata alone: read the
       // body and see whether the remote claim survives it. Caught here it is
@@ -356,7 +403,7 @@ export class Gate {
 /** Collapse per-posting reasons into a countable category. */
 export function reasonBucket(reason) {
   if (!reason) return 'unknown';
-  for (const prefix of ['onsite outside', 'remote but non-US', 'title contains', 'description contains']) {
+  for (const prefix of ['onsite outside', 'remote but non-US', 'remote only in listed states', 'title contains', 'description contains']) {
     if (reason.startsWith(prefix)) return prefix;
   }
   return reason;

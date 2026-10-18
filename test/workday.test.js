@@ -145,3 +145,22 @@ test('discovery returns null rather than a guess when the page never names a boa
   });
   assert.equal(await discoverWorkday('https://careers.example.com', { fetchImpl }), null);
 });
+
+test('every Workday location is kept, not just the first', () => {
+  // The list row says "7 Locations"; the detail's `location` is one of them
+  // and the rest are in additionalLocations.
+  const rows = [{ title: 'Platform Analyst', externalPath: '/job/x', locationsText: '7 Locations', remoteType: 'Remote' }];
+  const detail = {
+    title: 'Platform Analyst',
+    location: 'Roseville, CA',
+    additionalLocations: ['Charlotte, NC', 'Richmond, VA'],
+    jobDescription: '<p>Body</p>',
+    remoteType: 'Remote',
+  };
+  const [p] = mapWorkday(rows, new Map([['/job/x', detail]]), JLL, 'JLL');
+  assert.equal(p.location, 'Roseville, CA');
+  assert.deepEqual(p.locations, ['Roseville, CA', 'Charlotte, NC', 'Richmond, VA']);
+
+  const [bare] = mapWorkday(rows, new Map(), JLL, 'JLL');
+  assert.deepEqual(bare.locations, [], 'no detail, no structured list');
+});

@@ -5,6 +5,7 @@ import { htmlToText, unescapeHtml } from '../src/lib/text.js';
 import { normCompany, normTitle, normLocation, computeHash } from '../src/lib/normalize.js';
 import { parseSalary } from '../src/lib/salary.js';
 import { foldRemote } from '../src/lib/remote.js';
+import { parseStateList, remoteStatesInBody, stateCode } from '../src/lib/states.js';
 
 // --------------------------------------------------------------------------
 // text
@@ -229,4 +230,74 @@ test('foldRemote takes any positive signal', () => {
 test('foldRemote is not fooled by a substring', () => {
   // "non-remote" contains "remote".
   assert.equal(foldRemote('non-remote'), false);
+});
+
+// --------------------------------------------------------------------------
+// states
+// --------------------------------------------------------------------------
+
+// The footer line JLL's Workday template writes, verbatim.
+const JLL_FOOTER = 'Location:\n\nRemote –Austin, TX, Charlotte, NC, Harrisburg, PA, Richmond, VA, Roseville, CA, Sacramento, CA, Tallahassee, FL\n\nIf this job description resonates with you, we encourage you to apply.';
+
+test('a JLL "Remote –City, ST, ..." footer reads as the states it hires in', () => {
+  assert.deepEqual(remoteStatesInBody(JLL_FOOTER), ['tx', 'nc', 'pa', 'va', 'ca', 'fl']);
+});
+
+test('the dash can be an en dash, an em dash, a hyphen or a colon, spaced or not', () => {
+  for (const dash of ['–', '—', '-', ':', ' – ', ' - ']) {
+    assert.deepEqual(remoteStatesInBody(`Remote${dash}Chicago, IL, New York, NY`), ['il', 'ny'], `dash: "${dash}"`);
+  }
+});
+
+test('a single city is still a list', () => {
+  assert.deepEqual(remoteStatesInBody('Location:\n\nRemote –Chicago, IL\n\nApply now.'), ['il']);
+});
+
+test('a list that includes the home state says so', () => {
+  assert.ok(remoteStatesInBody('Remote – Denver, CO, Austin, TX').includes('co'));
+  assert.ok(remoteStatesInBody('Remote - Colorado, Michigan').includes('co'));
+});
+
+test('a body with no state list is null, not an empty list', () => {
+  // Null means "no limit stated", which is what most remote postings are.
+  assert.equal(remoteStatesInBody('Fully remote role. Location: Remote'), null);
+  assert.equal(remoteStatesInBody('Remote - US'), null);
+  assert.equal(remoteStatesInBody('Location: Remote – United States'), null);
+  assert.equal(remoteStatesInBody(''), null);
+});
+
+test('prose after "remote-" is not mistaken for a list', () => {
+  // Measured on 5,163 stored postings: hundreds of "remote-first company"
+  // lines, none of which may read as a state limit.
+  assert.equal(remoteStatesInBody('We are a remote-first company, based in Austin, TX.'), null);
+  assert.equal(remoteStatesInBody('Remote - preference for Austin, TX'), null);
+  assert.equal(remoteStatesInBody('Remote-Global'), null);
+});
+
+test('a foreign list is not a US state list', () => {
+  assert.equal(remoteStatesInBody('Remote –Toronto, ON, Vancouver, BC'), null);
+  assert.equal(remoteStatesInBody('Remote –London, GBR'), null);
+});
+
+test('parseStateList reads structured Workday entries', () => {
+  assert.deepEqual(parseStateList('Georgia, United States of America'), ['ga']);
+  assert.deepEqual(parseStateList('Washington, DC'), ['dc'], 'a city before a code is a city, even one named for a state');
+  assert.deepEqual(parseStateList('Texas - Other'), ['tx']);
+  assert.deepEqual(parseStateList('Portland, OR'), ['or'], 'upper-case OR is Oregon, not a separator');
+  assert.deepEqual(parseStateList('St. Paul, MN'), ['mn']);
+  assert.equal(parseStateList('United States of America'), null);
+  assert.equal(parseStateList('Remote'), null);
+  assert.equal(parseStateList('Chicago'), null, 'a city with no state cannot be placed');
+});
+
+test('lower-case two-letter words in text are not state codes', () => {
+  assert.equal(parseStateList('Austin, in'), null);
+});
+
+test('stateCode takes a config value in either form and any case', () => {
+  assert.equal(stateCode('colorado'), 'co');
+  assert.equal(stateCode('CO'), 'co');
+  assert.equal(stateCode('New  York'), 'ny');
+  assert.equal(stateCode('Ontario'), null);
+  assert.equal(stateCode(undefined), null);
 });

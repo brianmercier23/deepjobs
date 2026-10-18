@@ -40,6 +40,9 @@ export function makePosting(fields) {
     company,
     title,
     location,
+    // Every location the board lists, when it lists more than the one above.
+    // Not part of the hash: a board adding a city must not make a new posting.
+    locations: (fields.locations ?? []).map(collapse).filter(Boolean),
     url: fields.url ?? '',
     description: fields.description ?? '',
     // Tri-state. null means the board did not say.

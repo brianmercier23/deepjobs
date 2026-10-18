@@ -10,9 +10,9 @@ import { join } from 'node:path';
 
 import { VERSION } from './index.js';
 import { fetchAll, boardLabel } from './collectors/index.js';
-import { applyGate } from './gate.js';
+import { Gate, applyGate } from './gate.js';
 import { loadSignals, tagAll } from './tag.js';
-import { loadRubric, createClient, scoreAll, normalizeCaps, ScoreError } from './score.js';
+import { loadRubric, createClient, scoreAll, normalizeCaps, applyCaps, ScoreError } from './score.js';
 import { discover, companiesYamlLine } from './discover.js';
 import { normalizeNotify, buildRequest, sendLeads } from './notify.js';
 import {
@@ -20,8 +20,8 @@ import {
   loadGates, loadNotify,
 } from './config.js';
 import {
-  findByHashPrefix, openDb, pendingLeads, recordGate, recordNotified, recordPostings, recordScore, report, setVerdict,
-  splitNew, stats, touchSeen, unscoredPassed, unscoredPassedCount, upsertBoard,
+  findByHashPrefix, gatedPostings, openDb, pendingLeads, recordGate, recordNotified, recordPostings, recordScore, report, setVerdict,
+  splitNew, stats, touchSeen, unscoredPassed, unscoredPassedCount, updateScoreTotal, upsertBoard,
 } from './db.js';
 
 export const USAGE = `deepjobs ${VERSION}
@@ -33,6 +33,8 @@ Usage
   deepjobs setup                      install the interview skill for Claude Code
   deepjobs run [options]              collect, dedupe, tag, gate, score
   deepjobs discover <name|--url>      find a company's board slug
+  deepjobs regate [options]           re-apply gates.yaml and score_caps to
+                                      every posting on file (free)
   deepjobs report [options]           list what scored well
   deepjobs mark <id> yes|no|maybe     record what you thought of one
   deepjobs notify [options]           send new leads to a webhook, once each
@@ -52,6 +54,9 @@ Run options
 Discover options
   --url <url>        read a careers page instead of guessing a slug
   --all              try every slug spelling, not just up to the first hit
+
+Regate options
+  --dry-run          say what would change, write nothing
 
 Report options
   --min <n>          only postings scoring at or above n (default 60)
@@ -76,7 +81,7 @@ Scoring is the only stage that costs money, and it needs ANTHROPIC_API_KEY in
 the environment or in a .env file. Everything else runs for nothing.
 `;
 
-const KNOWN = new Set(['init', 'setup', 'run', 'discover', 'report', 'mark', 'stats', 'notify']);
+const KNOWN = new Set(['init', 'setup', 'run', 'discover', 'regate', 'report', 'mark', 'stats', 'notify']);
 
 const FLAGS = new Set(['dry-run', 'no-score', 'rescore-unscored', 'ai-forward', 'all', 'json', 'force', 'baseline']);
 const VALUED = new Set(['limit', 'min', 'db', 'url', 'config', 'why']);
@@ -320,6 +325,72 @@ async function cmdRun(opts, io, deps = {}) {
 }
 
 // --------------------------------------------------------------------------
+// regate
+
+const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+
+/**
+ * Run the current gate over everything already on file, and hold stored scores
+ * to the current caps.
+ *
+ * No crawl and no model call. A new gate flag with a cap behind it would
+ * otherwise reach only postings collected after it was added, and the ones
+ * that prompted it would keep their uncapped scores. A posting the gate now
+ * rejects keeps its score, so it still shows in `report`; `notify` already
+ * skips anything the gate rejected.
+ */
+function cmdRegate(opts, io) {
+  const gates = loadGates(configPath('gates.yaml', opts.config ?? 'config'));
+  const caps = normalizeCaps(gates.score_caps);
+  const dryRun = Boolean(opts['dry-run']);
+  const db = openDb(opts.db ?? 'data/seen.db');
+  const gate = new Gate(gates);
+
+  let seen = 0;
+  let toReject = 0;
+  let toPass = 0;
+  let reflagged = 0;
+  let rescored = 0;
+  for (const p of gatedPostings(db)) {
+    seen += 1;
+    const r = gate.check(p);
+    const result = r.passed ? 'pass' : 'reject';
+    const reason = r.reason ?? null;
+    if (result !== p.gate.result) {
+      if (result === 'reject') toReject += 1;
+      else toPass += 1;
+    } else if (!sameSet(r.flags, p.gate.flags)) {
+      reflagged += 1;
+    }
+    if (!dryRun && (result !== p.gate.result || reason !== p.gate.reason || !sameSet(r.flags, p.gate.flags))) {
+      recordGate(db, p.hash, { result, reason, flags: r.flags });
+    }
+
+    if (!p.score) continue;
+    // Same order as scoring: the score's flags plus the gate's, capped on the
+    // combined set.
+    const capped = applyCaps({
+      overall: p.score.overall,
+      flags: [...new Set([...p.score.flags, ...r.flags])],
+    }, caps);
+    if (capped.overall === p.score.overall && sameSet(capped.flags, p.score.flags)) continue;
+    rescored += 1;
+    if (capped.overall !== p.score.overall) {
+      io.out(`${String(p.score.overall).padStart(3)} -> ${String(capped.overall).padStart(3)}  ${p.company} - ${p.title}  ${p.hash.slice(0, 8)}\n`);
+    }
+    if (!dryRun) updateScoreTotal(db, p.hash, capped.overall, capped.flags);
+  }
+
+  io.err([
+    `${plural(seen, 'posting')} re-gated${dryRun ? ' (dry run, nothing written)' : ''}`,
+    `  ${toReject} now rejected, ${toPass} now passing, ${reflagged} with new flags`,
+    `  ${plural(rescored, 'score')} updated to the current flags and caps`,
+  ].join('\n') + '\n');
+  if (toPass && !dryRun) io.err('newly passing postings are unscored: `deepjobs run --rescore-unscored`\n');
+  return 0;
+}
+
+// --------------------------------------------------------------------------
 // discover
 
 async function cmdDiscover(opts, positional, io, deps = {}) {
@@ -533,6 +604,7 @@ export async function main(argv, io = {
       case 'init': return cmdInit(opts, io);
       case 'run': return await cmdRun(opts, io, deps);
       case 'discover': return await cmdDiscover(opts, positional, io, deps);
+      case 'regate': return cmdRegate(opts, io);
       case 'report': return cmdReport(opts, io);
       case 'mark': return cmdMark(opts, positional, io);
       case 'stats': return cmdStats(opts, io);

@@ -9,7 +9,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { nowIso } from './lib/posting.js';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS posting (
@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS posting (
   company         TEXT,
   title           TEXT,
   location        TEXT,
+  locations       TEXT,               -- JSON array, when the board lists several
   url             TEXT,
   description     TEXT,
   remote          INTEGER,            -- 1 / 0 / NULL, and NULL is a real answer
@@ -105,8 +106,16 @@ export function openDb(path = 'data/seen.db') {
   db.exec('PRAGMA foreign_keys = ON');
   if (path !== ':memory:') db.exec('PRAGMA journal_mode = WAL');
   db.exec(SCHEMA);
+  migrate(db);
   db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   return db;
+}
+
+// CREATE TABLE IF NOT EXISTS leaves an old table as it was, so a column added
+// after the first release has to be added here too.
+function migrate(db) {
+  const cols = new Set(db.prepare('PRAGMA table_info(posting)').all().map((c) => c.name));
+  if (!cols.has('locations')) db.exec('ALTER TABLE posting ADD COLUMN locations TEXT');
 }
 
 // SQLite has no boolean. A tri-state has to survive the round trip intact,
@@ -165,13 +174,14 @@ export function splitNew(db, postings) {
 
 const INSERT_POSTING = `
 INSERT INTO posting (hash, first_seen, last_seen, source, company, title,
-                     location, url, description, remote, salary_min,
+                     location, locations, url, description, remote, salary_min,
                      salary_max, salary_raw, employment_type, posted_at,
                      tags, ai_forward)
-VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 ON CONFLICT(hash) DO UPDATE SET
   last_seen       = excluded.last_seen,
   source          = COALESCE(excluded.source,          posting.source),
+  locations       = COALESCE(excluded.locations,       posting.locations),
   url             = COALESCE(excluded.url,             posting.url),
   description     = COALESCE(excluded.description,     posting.description),
   remote          = COALESCE(excluded.remote,          posting.remote),
@@ -210,6 +220,7 @@ export function recordPostings(db, postings) {
         p.company || null,
         p.title || null,
         p.location || null,
+        toJson(p.locations),
         p.url || null,
         p.description || null,
         toInt(p.remote),
@@ -230,12 +241,18 @@ export function recordPostings(db, postings) {
   return list.length;
 }
 
-/** Bump last_seen for postings already on file. Keeps a stale-role signal. */
+/**
+ * Bump last_seen for postings already on file. Keeps a stale-role signal.
+ *
+ * Also fills `locations` where it is still empty, since rows written before
+ * that column existed would otherwise never get one: splitNew does not offer
+ * them again.
+ */
 export function touchSeen(db, postings) {
   const now = nowIso();
-  const stmt = db.prepare('UPDATE posting SET last_seen = ? WHERE hash = ?');
+  const stmt = db.prepare('UPDATE posting SET last_seen = ?, locations = COALESCE(locations, ?) WHERE hash = ?');
   let n = 0;
-  for (const p of postings) n += stmt.run(now, p.hash).changes;
+  for (const p of postings) n += stmt.run(now, toJson(p.locations), p.hash).changes;
   return n;
 }
 
@@ -273,6 +290,38 @@ export function unscoredPassed(db, { limit = null } = {}) {
   }));
 }
 
+/**
+ * Every posting the gate has seen, with its last gate result and any score.
+ *
+ * What `regate` walks. A gates.yaml change only reaches postings collected
+ * after it, since splitNew never offers an old posting again; this is how the
+ * rest of the database catches up without a re-crawl or a re-score.
+ */
+export function gatedPostings(db) {
+  const rows = db.prepare(`
+    SELECT p.*, g.result AS gate_result, g.reason AS gate_reason, g.flags AS gate_flags,
+           s.overall AS score_overall, s.flags AS score_flags
+    FROM posting p
+    JOIN gate_result g ON g.hash = p.hash
+    LEFT JOIN score s  ON s.hash = p.hash
+  `).all();
+  return rows.map((row) => ({
+    ...rowToPosting(row),
+    gate: { result: row.gate_result, reason: row.gate_reason ?? null, flags: fromJson(row.gate_flags) },
+    score: row.score_overall === null || row.score_overall === undefined
+      ? null
+      : { overall: row.score_overall, flags: fromJson(row.score_flags) },
+  }));
+}
+
+/**
+ * Rewrite a stored total and its flags, leaving everything else the model
+ * said alone. Only `regate` calls this, to apply a cap the score predates.
+ */
+export function updateScoreTotal(db, hash, overall, flags) {
+  db.prepare('UPDATE score SET overall = ?, flags = ? WHERE hash = ?').run(overall, toJson(flags), hash);
+}
+
 /** How many gate-passed postings are still unscored. Cheap enough to call on every run. */
 export function unscoredPassedCount(db) {
   const row = db.prepare(`
@@ -293,6 +342,7 @@ function rowToPosting(row) {
     company: row.company ?? '',
     title: row.title ?? '',
     location: row.location ?? '',
+    locations: fromJson(row.locations),
     url: row.url ?? '',
     description: row.description ?? '',
     remote: fromInt(row.remote),

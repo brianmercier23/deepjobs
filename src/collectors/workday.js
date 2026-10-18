@@ -67,6 +67,10 @@ export function mapWorkday(rows, details, board, name = null) {
   for (const j of rows ?? []) {
     const info = details?.get(j.externalPath) ?? null;
     const location = info?.location || j.locationsText || '';
+    // The list row says "7 Locations" and the detail's `location` is only the
+    // first of them. The rest are in `additionalLocations`, and on a remote
+    // posting they are usually the states it may be worked from.
+    const locations = info?.location ? [info.location, ...(info.additionalLocations ?? [])] : [];
     const description = info?.jobDescription ? htmlToText(info.jobDescription) : '';
 
     out.push(makePosting({
@@ -74,6 +78,7 @@ export function mapWorkday(rows, details, board, name = null) {
       company: name || board.tenant,
       title: j.title ?? info?.title ?? '',
       location,
+      locations,
       url: info?.externalUrl || publicUrl(board, j.externalPath),
       description,
       // remoteType is structured and present on the list row, so this is one

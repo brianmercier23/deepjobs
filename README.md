@@ -147,7 +147,11 @@ collect -> dedupe -> tag -> gate -> score -> report
   barely moves the final score, and [docs/verification.md](docs/verification.md)
   shows the numbers rather than hiding them.
 - **gate** rejects on location, compensation and title using the body text.
-  Also free. This is the stage that makes the whole thing cheap.
+  Also free. This is the stage that makes the whole thing cheap. It also reads
+  the body against the board's remote flag: a "remote" posting that asks for
+  office days, restricts where you may live, or names the states it hires in
+  without yours (`REMOTE_STATE_LIMITED`) gets a flag that a `score_caps` entry
+  can hold below your notify line.
 - **score** sends only what survived to an LLM, with your rubric as the system
   prompt, and returns six sub-scores plus a rationale. Sampling temperature is
   pinned at 0: rescoring the same postings at the default moved one of them 30
@@ -223,6 +227,15 @@ posting is scored with the same context it would have had at the time.
 Scores that landed before the failure are always written. A run that scored 300
 of 800 before the balance went keeps the 300.
 
+## When the gate changes
+
+A gate or cap change in `config/gates.yaml` only reaches postings collected
+after it, because nothing already on file is offered again. `deepjobs regate`
+runs the current gate over every stored posting and holds stored scores to the
+current `score_caps`, with no crawl and no model call. It prints each score it
+lowers; `--dry-run` shows the same without writing. A posting the gate now
+rejects keeps its score, so it stays visible in `report`, and `notify` skips it.
+
 ## Notes that cost time to rediscover
 
 Board APIs are not uniform and the differences are not documented anywhere.
@@ -247,6 +260,11 @@ Board APIs are not uniform and the differences are not documented anywhere.
 - **Workday's `postedOn` is a phrase, not a date** ("Posted Today", "Posted 30+
   Days Ago"). The real date is on the detail call. Deriving one from the phrase
   makes a stale posting look fresh.
+- **Workday's detail `location` is only the first location.** A list row that
+  says "7 Locations" carries the other six in `additionalLocations`, and on a
+  remote posting those are often the only states it hires in. Some tenants
+  repeat them in the body ("Remote –Austin, TX, Charlotte, NC, ..."); others
+  (Colliers) do not.
 - **SmartRecruiters' list endpoint has no link a human can open.** Its only URL
   field points back at the API; `postingUrl` and `applyUrl` exist on the detail
   response only. Since descriptions are capped at 60 detail calls per company,

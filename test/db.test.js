@@ -7,6 +7,10 @@ import {
   report, stats, scoreBand, unscoredPassed, unscoredPassedCount, SCHEMA_VERSION,
 } from '../src/db.js';
 import { makePosting } from '../src/lib/posting.js';
+import { DatabaseSync } from 'node:sqlite';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 function db() {
   return openDb(':memory:');
@@ -147,6 +151,22 @@ test('touchSeen bumps last_seen without touching anything else', () => {
   const after = getPosting(d, p.hash);
   assert.equal(after.description, before.description);
   assert.ok(after.lastSeen >= before.lastSeen);
+});
+
+test('touchSeen backfills locations once and never overwrites them', () => {
+  // A row written before the locations column existed is never offered as
+  // new again, so a re-crawl is the only way it gets the structured list.
+  const d = db();
+  const p = posting();
+  recordPostings(d, [p]);
+  assert.deepEqual(getPosting(d, p.hash).locations, []);
+
+  touchSeen(d, [{ ...p, locations: ['Georgia, United States of America', 'Florida, United States of America'] }]);
+  assert.deepEqual(getPosting(d, p.hash).locations, ['Georgia, United States of America', 'Florida, United States of America']);
+
+  touchSeen(d, [{ ...p, locations: [] }]);
+  touchSeen(d, [{ ...p, locations: ['Texas - Other'] }]);
+  assert.deepEqual(getPosting(d, p.hash).locations, ['Georgia, United States of America', 'Florida, United States of America']);
 });
 
 test('gate results and flags round-trip as arrays', () => {
@@ -294,4 +314,25 @@ test('a posting on file but never gated is not a recovery candidate', () => {
   const p = posting();
   recordPostings(d, [p]);
   assert.equal(unscoredPassedCount(d), 0);
+});
+
+test('structured locations round-trip and do not change the hash', () => {
+  const d = db();
+  const p = posting({ location: 'Roseville, CA', locations: ['Roseville, CA', 'Austin, TX'] });
+  assert.equal(p.hash, posting({ location: 'Roseville, CA' }).hash);
+  recordPostings(d, [p]);
+  assert.deepEqual(getPosting(d, p.hash).locations, ['Roseville, CA', 'Austin, TX']);
+});
+
+test('a database from before the locations column gains it on open', () => {
+  const path = join(mkdtempSync(join(tmpdir(), 'deepjobs-')), 'old.db');
+  const old = new DatabaseSync(path);
+  old.exec('CREATE TABLE posting (hash TEXT PRIMARY KEY, first_seen TEXT NOT NULL, last_seen TEXT NOT NULL, source TEXT, company TEXT, title TEXT, location TEXT, url TEXT, description TEXT, remote INTEGER, salary_min INTEGER, salary_max INTEGER, salary_raw TEXT, employment_type TEXT, posted_at TEXT, tags TEXT, ai_forward INTEGER, written_at TEXT)');
+  old.close();
+
+  const d = openDb(path);
+  const p = posting({ locations: ['Chicago, IL', 'Austin, TX'] });
+  recordPostings(d, [p]);
+  assert.deepEqual(getPosting(d, p.hash).locations, ['Chicago, IL', 'Austin, TX']);
+  d.close();
 });

@@ -186,6 +186,7 @@ export function formatPosting(posting, { flags = [] } = {}) {
     `Title: ${posting.title}`,
     `Location: ${posting.location || '(not stated)'}`,
   ];
+  if ((posting.locations ?? []).length > 1) lines.push(`All listed locations: ${posting.locations.join('; ')}`);
   if (posting.remote !== null && posting.remote !== undefined) {
     lines.push(`Board says remote: ${posting.remote}`);
   }
