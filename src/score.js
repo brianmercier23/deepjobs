@@ -13,7 +13,11 @@
 
 import { readFileSync } from 'node:fs';
 
-export const MODEL = 'claude-haiku-4-5';
+// Haiku 5.5 since 2026-11-08 (was claude-haiku-4-5). It rejects any
+// `temperature` but 1, so stability now comes from thinking off at low effort;
+// docs/verification.md has the measurement. Scores from the two models are not
+// comparable: 5.5 reads requirements late in the body that 4.5 missed.
+export const MODEL = 'claude-haiku-5-5';
 
 // Was 4,500 on the theory that only EEO text and benefits sit past it. Wrong:
 // on 2026-10-02 all 50 top-scored postings ran longer than that, and one
@@ -22,16 +26,22 @@ export const MODEL = 'claude-haiku-4-5';
 // longest of those 50 (~9,900) with room, for roughly 30% more input tokens.
 export const MAX_DESCRIPTION_CHARS = 12000;
 
-// Six sub-scores, a total, a sentence and a few flags. 400 is roughly double
-// what a well-behaved response needs, which is the margin that keeps a slightly
-// chatty one from being truncated into unparseable JSON.
-export const MAX_TOKENS = 400;
+// Six sub-scores, a total, a sentence and a few flags need about 200 tokens.
+// Headroom for a chatty reply, and for thinking if THINKING is ever turned on
+// (it counts against this cap, and a reply cut off after a thinking block
+// parses as nothing).
+export const MAX_TOKENS = 1500;
 
 export const RETRIES = 2;
 export const RETRY_BACKOFF_MS = 1_500;
 
-// Pinned, not left to the default. See scoreOne.
-export const TEMPERATURE = 0;
+// Haiku 5.5 thinks by default at effort `medium`. Both are pinned so a default
+// change upstream cannot move every score. Measured 2026-11-08 on 20 judged
+// postings, scored twice each: adaptive thinking moved borderline postings up
+// to 27 points between runs; thinking off moved them 2.3 on average, 13 worst.
+// `disabled` is accepted only at effort high or below.
+export const THINKING = { type: 'disabled' };
+export const EFFORT = 'low';
 
 // Trimmed in code rather than by prompt. See cleanRationale.
 export const MAX_RATIONALE_WORDS = 30;
@@ -41,13 +51,14 @@ export const MAX_RATIONALE_WORDS = 30;
 export const SUBSCORE_TOLERANCE = 5;
 export const FLAG_SUBSCORE_MISMATCH = 'subscore_mismatch';
 
-// Haiku 4.5 list pricing, USD per million tokens. Used only for the run-cost
-// line, so a stale number here misreports spend but breaks nothing.
+// Haiku 5.5 list pricing for prompts of 100K tokens or fewer (a posting plus
+// the rubric is ~5K), USD per million tokens. Used only for the run-cost line,
+// so a stale number here misreports spend but breaks nothing.
 export const PRICING = {
-  input: 1.0,
-  output: 5.0,
-  cacheWrite: 1.25, // 1.25x input
-  cacheRead: 0.1, //  0.1x input
+  input: 0.1,
+  output: 0.5,
+  cacheWrite: 0.125, // 1.25x input
+  cacheRead: 0.01, //  0.1x input
 };
 
 /**
@@ -466,7 +477,10 @@ const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
  * contract comes to about 2,100. The breakpoint costs nothing and pays off for
  * the users who write long rubrics; it is not a saving to advertise.
  */
-export async function scoreOne(posting, { rubric, client, usage = null, flags = [], caps = null } = {}) {
+export async function scoreOne(posting, {
+  rubric, client, usage = null, flags = [], caps = null,
+  model = MODEL, thinking = THINKING, effort = EFFORT,
+} = {}) {
   if (!rubric) throw new ScoreError('scoreOne needs a rubric');
   if (!client) throw new ScoreError('scoreOne needs a client');
 
@@ -477,13 +491,13 @@ export async function scoreOne(posting, { rubric, client, usage = null, flags = 
   for (let attempt = 0; attempt <= RETRIES; attempt += 1) {
     try {
       const response = await client.messages.create({
-        model: MODEL,
+        model,
         max_tokens: MAX_TOKENS,
         // A score that changes when nothing about the posting changed is not a
-        // score. Measured at the default sampling temperature, rescoring the
-        // same 28 postings moved a quarter of them by more than 10 points,
-        // which is more than the difference this tool exists to detect.
-        temperature: TEMPERATURE,
+        // score. On Haiku 4.5 this was `temperature: 0`; Haiku 5.5 rejects it,
+        // so thinking and effort are pinned instead (see THINKING).
+        thinking,
+        output_config: { effort },
         system,
         messages: [{ role: 'user', content: prompt }],
       });
@@ -504,7 +518,7 @@ export async function scoreOne(posting, { rubric, client, usage = null, flags = 
       }, caps);
       return {
         hash: posting.hash,
-        model: MODEL,
+        model,
         ...capped,
         // Per-posting, not just per-run. A single line in a report showing what
         // one verdict cost is the thing that stops someone from wondering.

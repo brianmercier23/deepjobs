@@ -43,9 +43,10 @@ The economics are the point:
 | the same crawl with no gate | 2,929 | ~$11.40 |
 
 Scoring is $0.0039 a posting, so the free stages are worth about $8 a crawl.
-Sampling temperature is pinned at 0 and 25 of 28 rescored postings come back
-identical; against the implementation this replaces, the median difference is
-zero.
+Those figures are from Claude Haiku 4.5. The scorer moved to Claude Haiku 5.5
+on 2026-11-08: about a seventh of the cost per posting, and it reads late
+requirements 4.5 missed. 5.5 does not accept temperature 0, so thinking is off
+at low effort instead; rescored twice, postings move 2.3 points on average.
 
 Method for every number here, including the ones that came out wrong, is in
 [docs/verification.md](docs/verification.md).
@@ -153,9 +154,10 @@ collect -> dedupe -> tag -> gate -> score -> report
   without yours (`REMOTE_STATE_LIMITED`) gets a flag that a `score_caps` entry
   can hold below your notify line.
 - **score** sends only what survived to an LLM, with your rubric as the system
-  prompt, and returns six sub-scores plus a rationale. Sampling temperature is
-  pinned at 0: rescoring the same postings at the default moved one of them 30
-  points, and a score that changes when the posting did not is not a score.
+  prompt, and returns six sub-scores plus a rationale. Thinking and effort are
+  pinned (the model rejects temperature 0): unpinned, rescoring the same
+  postings moved one of them 27 points, and a score that changes when the
+  posting did not is not a score.
 - **report**, and then `deepjobs mark <id> yes|no --why "..."`. Your verdict
   lives in a separate table the crawler never writes to, so re-running the
   pipeline structurally cannot overwrite what you decided. It is also the only

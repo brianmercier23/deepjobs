@@ -245,7 +245,24 @@ The reference implementation left sampling at the default. Rescoring the same
 | **temperature 0** | **25 of 28** | **0.8 points** | **10 points** |
 
 A score that moves 30 points when nothing about the posting changed is not a
-score. Everything below is measured at temperature 0.
+score. Everything below is measured at temperature 0, on Claude Haiku 4.5.
+
+### Haiku 5.5 (2026-11-08)
+
+Haiku 5.5 rejects any temperature but 1, so the switch pinned thinking and
+effort instead. Twenty postings with a human verdict (19 no, 1 yes), each
+scored twice per setting against the same rubric:
+
+| | identical | mean move | worst move | "no" at 60+ |
+|---|---|---|---|---|
+| Haiku 4.5, temperature 0 | 20 of 20 | 0 | 0 | 3 (68, 72, 78) |
+| Haiku 5.5, adaptive thinking, low effort | — | — | 27 | 2 of 3 runs had one |
+| **Haiku 5.5, thinking off, low effort** | **9 of 20** | **2.3** | **13** | **1 of 2 runs (62)** |
+
+4.5 was perfectly stable and wrong in a stable way. The one "yes" it scored
+68 lists FDA/GMP life-sciences knowledge under required qualifications and is
+located in Cambridge, MA; 5.5 found both and capped it. Cost per posting fell
+from about $0.0036 to about $0.0005.
 
 ### Against the reference implementation
 
